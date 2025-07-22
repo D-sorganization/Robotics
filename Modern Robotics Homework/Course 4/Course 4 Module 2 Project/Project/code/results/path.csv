@@ -1,0 +1,5 @@
+# path.csv file for A* graph search scene.
+# All lines beginning with a # are treated as a comment and ignored.
+# Below is a solution path represented as a sequence of node IDs.
+# id_1,id_2,id_3,...
+1,2,3,4,5,7,8,9,10,11,12,14,15,16,20,21,23,24,28,31,32,33,44,46,48,49,50,56,77,80,81,82,84,85,86,88,89,90

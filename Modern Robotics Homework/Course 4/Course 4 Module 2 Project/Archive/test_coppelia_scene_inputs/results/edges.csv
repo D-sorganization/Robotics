@@ -1,0 +1,6 @@
+# edges.csv file for A* graph search scene.
+# All lines beginning with a # are treated as a comment and ignored.
+# Each line below has the form
+# id1,id2,cost
+1,2,0.559
+2,3,0.559

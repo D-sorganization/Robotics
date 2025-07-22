@@ -1,0 +1,1 @@
+For tests, please put nodes.csv, edges.csv, obstacles.csv and path.csv files in the same directory as code.py script.

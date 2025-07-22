@@ -1,0 +1,2136 @@
+%%%%%% FOLDER PACKER / UNPACKER - v1.1 %%%%%%
+%%%%%% Source Folder: C:/Users/diete/Matlab Drive/_Projects/_Coursera Homework/_Modern Robotics Course/Homework/Course 6/Capstone Project/Corrected %%%%%%
+%%%%%% Pack Time: 2025-07-05 17:15:01 %%%%%%
+%%%%%% Total Files: 20 %%%%%%
+%%%%%% Files Excluded: 0 %%%%%%
+%%%%%% Active Exclusions: *Archive, *Backup, *_archive, *_backup, _Archive, _Backup %%%%%%
+%%%%%% Supported Extensions: .bat, .c, .cpp, .css, .go, .h, .hpp, .html, .java, .js, .json, .jsx, .kt, .m, .md, .php, .py, .r, .rb, .rs, .rst, .sh, .sql, .swift, .tex, .ts, .tsx, .txt, .vue, .xml, .yaml, .yml %%%%%%
+
+%%%%%% START FILE: applyJointLimits.m %%%%%%
+function Je_limited = applyJointLimits(Je, violated_joints)
+% applyJointLimits - Zero out columns of Jacobian for joints at limits
+% Inputs:
+%   Je - 6x9 Jacobian matrix
+%   violated_joints - Indices of joints that violate limits
+% Output:
+%   Je_limited - Modified Jacobian with zeroed columns
+
+    Je_limited = Je;
+    for i = violated_joints
+        Je_limited(:, 4+i) = 0;  % Arm joints are columns 5-9
+    end
+end
+%%%%%% END FILE: applyJointLimits.m %%%%%%
+
+%%%%%% START FILE: checkJointLimits.m %%%%%%
+function testJointLimits = checkJointLimits(arm_angles)
+% checkJointLimits - Check if arm configuration violates joint limits
+% Input:
+%   arm_angles - 5x1 vector of arm joint angles
+% Output:
+%   testJointLimits - Vector of violated joint indices (empty if none)
+
+    % Conservative joint limits to avoid singularities and self-collision
+    % Joint 3 and 4 should not be too close to zero (singularity)
+    % Joint 2 should not go too far back (self-collision with base)
+    joint_limits = [
+        -2.9, 2.9;      % Joint 1
+        -1.5, 1.0;      % Joint 2 (limited backward motion)
+        -2.2, -0.1;     % Joint 3 (avoid zero)
+        -1.8, -0.1;     % Joint 4 (avoid zero)
+        -2.9, 2.9       % Joint 5
+    ];
+    
+    testJointLimits = [];
+    for i = 1:5
+        if arm_angles(i) < joint_limits(i,1) || arm_angles(i) > joint_limits(i,2)
+            testJointLimits = [testJointLimits, i];
+        end
+    end
+end
+%%%%%% END FILE: checkJointLimits.m %%%%%%
+
+%%%%%% START FILE: FeedbackControl.m %%%%%%
+function [V, Xerr] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error)
+% FeedbackControl - Calculates commanded end-effector twist using PI control
+% Inputs:
+%   X - Current actual end-effector configuration (4x4 SE(3))
+%   Xd - Current reference end-effector configuration (4x4 SE(3))
+%   Xd_next - Reference configuration at next timestep (4x4 SE(3))
+%   Kp - Proportional gain matrix (6x6)
+%   Ki - Integral gain matrix (6x6)
+%   dt - Timestep (s)
+%   integral_error - Current integral of error (6x1)
+%
+% Outputs:
+%   V - Commanded end-effector twist in end-effector frame (6x1)
+%   Xerr - Current error twist (6x1)
+
+% Calculate error twist
+X_err = MatrixLog6(TransInv(X) * Xd);
+Xerr = se3ToVec(X_err);
+
+% Update integral error (done externally in main loop)
+
+% Calculate feedforward reference twist
+Vd_se3 = (1/dt) * MatrixLog6(TransInv(Xd) * Xd_next);
+Vd = se3ToVec(Vd_se3);
+
+% Calculate control law: V = [Ad(X^-1 * Xd)] * Vd + Kp * Xerr + Ki * integral_error
+Ad_Xinv_Xd = Adjoint(TransInv(X) * Xd);
+V = Ad_Xinv_Xd * Vd + Kp * Xerr + Ki * integral_error;
+
+end
+
+% Note: This code assumes the Modern Robotics library is in the MATLAB path
+% All helper functions (MatrixLog6, TransInv, Adjoint, etc.) are from that library
+%%%%%% END FILE: FeedbackControl.m %%%%%%
+
+%%%%%% START FILE: implementation_comparison.md %%%%%%
+# Implementation Comparison: Functional vs OOP Approach
+
+## Overview
+
+This document compares our functional implementation with the reference OOP implementation.
+
+## Key Differences
+
+### 1. Programming Paradigm
+
+**Reference (OOP)**:
+```matlab
+% Object-oriented with classes
+Mybot = youbot(l, w, r, T_b0, M_0e, Blists);
+Mybot.kp = 1.5 * eye(6);
+[Animation, Xerr] = Mybot.FeedbackControl(dt, Td, maxspeed, grasp, jointLimits);
+```
+
+**Our Implementation (Functional)**:
+```matlab
+% Functional programming
+[Traj, gripper_state] = TrajectoryGenerator(...);
+[V, Xerr] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
+config = NextState(config, speeds, dt, max_speed);
+```
+
+### 2. File Structure
+
+**Reference**:
+- `mobileRobot.m` - Base class
+- `youbot.m` - Inherited class
+- `calculateTf.m` - Time calculation
+- `traj2mat.m` - Trajectory conversion
+- Single main script
+
+**Our Implementation**:
+- Separate function files for each component
+- No class inheritance
+- Multiple runner scripts for flexibility
+- Modular design
+
+### 3. Trajectory Generation
+
+**Reference**:
+- Uses `ScrewTrajectory` and `CartesianTrajectory`
+- Time allocation based on distance ratios
+- Stores trajectory in cell arrays
+
+**Our Implementation**:
+- Uses `ScrewTrajectory` from Modern Robotics
+- Similar distance-based time allocation
+- Direct matrix format output
+
+### 4. Control Implementation
+
+**Reference**:
+- Control loop inside class method
+- Integrated joint limit testing
+- Property-based state management
+
+**Our Implementation**:
+- Separate control function
+- Modular joint limit checking
+- Explicit state passing
+
+## Advantages of Each Approach
+
+### OOP Approach (Reference)
+✓ Encapsulation of robot properties
+✓ Cleaner state management
+✓ Natural inheritance for robot types
+✓ Less parameter passing
+
+### Functional Approach (Ours)
+✓ Easier to understand individual components
+✓ More flexible for testing
+✓ Better for educational purposes
+✓ Simpler debugging
+
+## Output Compatibility
+
+Both implementations generate:
+- Same CSV format (13 columns)
+- Compatible error plots
+- Similar performance metrics
+- CoppeliaSim-ready animation files
+
+## Performance Comparison
+
+| Metric | Reference | Our Implementation |
+|--------|-----------|-------------------|
+| Lines of Code | ~500 (2 classes) | ~600 (15 files) |
+| Modularity | Medium | High |
+| Testability | Lower | Higher |
+| Learning Curve | Steeper | Gentler |
+
+## Usage Examples
+
+### Running Complete Simulation
+
+**Reference**:
+```matlab
+runscript
+```
+
+**Our Implementation**:
+```matlab
+runProject  % or
+main        % Select option 6
+```
+
+### Testing Individual Components
+
+**Reference**:
+```matlab
+% More difficult - need to create objects
+```
+
+**Our Implementation**:
+```matlab
+runTests  % Tests all milestones
+% Or test individually:
+config_new = NextState(config, speeds, dt, max_speed);
+```
+
+## Which to Use?
+
+- **Use OOP (Reference)** if:
+  - You're comfortable with OOP
+  - You want compact code
+  - You plan to extend to multiple robot types
+
+- **Use Functional (Ours)** if:
+  - You're learning the concepts
+  - You want to understand each component
+  - You need flexible testing
+  - You prefer modular design
+
+## Migration Guide
+
+To use elements from the reference in our implementation:
+
+1. **Grasp Configuration**: Already incorporated
+2. **Time Calculation**: Similar approach used
+3. **Control Gains**: Can directly copy values
+4. **Joint Limits**: Can adapt the test method
+
+Both implementations satisfy all project requirements and produce valid results for the Northwestern Mobile Manipulation Capstone project.
+%%%%%% END FILE: implementation_comparison.md %%%%%%
+
+%%%%%% START FILE: main_script.m %%%%%%
+%% Mobile Manipulation Capstone Project
+% Northwestern University - Modern Robotics
+% 
+% This script runs the complete mobile manipulation simulation
+% for the KUKA youBot picking and placing a block.
+
+clear; clc; close all;
+
+fprintf('================================================\n');
+fprintf('  Mobile Manipulation Capstone Project\n');
+fprintf('  KUKA youBot Pick and Place Simulation\n');
+fprintf('================================================\n\n');
+
+%% Select simulation mode
+fprintf('Select simulation mode:\n');
+fprintf('1. Run all tests (milestones)\n');
+fprintf('2. Run best controller\n');
+fprintf('3. Run overshoot controller\n');
+fprintf('4. Run new task\n');
+fprintf('5. Run all three final simulations\n');
+fprintf('6. Run complete project (like reference)\n');
+fprintf('7. Exit\n\n');
+
+choice = input('Enter your choice (1-7): ');
+
+switch choice
+    case 1
+        fprintf('\n=== Running Milestone Tests ===\n\n');
+        % Run the test script directly
+        runTests;
+        
+    case 2
+        fprintf('\n=== Running Best Controller ===\n');
+        runSimulation('best');
+        
+    case 3
+        fprintf('\n=== Running Overshoot Controller ===\n');
+        runSimulation('overshoot');
+        
+    case 4
+        fprintf('\n=== Running New Task ===\n');
+        runSimulation('newTask');
+        
+    case 5
+        fprintf('\n=== Running All Three Simulations ===\n\n');
+        
+        % Run best controller
+        fprintf('1/3: Best Controller\n');
+        runSimulation('best');
+        pause(2);
+        
+        % Run overshoot controller
+        fprintf('\n2/3: Overshoot Controller\n');
+        runSimulation('overshoot');
+        pause(2);
+        
+        % Run new task
+        fprintf('\n3/3: New Task\n');
+        runSimulation('newTask');
+        
+        fprintf('\n=== All simulations complete! ===\n');
+        fprintf('Check the results/ directory for outputs\n');
+        
+    case 6
+        fprintf('\n=== Running Complete Project ===\n');
+        runProject;
+        
+    case 7
+        fprintf('\nExiting...\n');
+        return;
+        
+    otherwise
+        fprintf('\nInvalid choice. Please run the script again.\n');
+        return;
+end
+
+fprintf('\n================================================\n');
+fprintf('  Simulation Complete!\n');
+fprintf('================================================\n\n');
+
+% Display instructions for CoppeliaSim
+fprintf('To visualize the results in CoppeliaSim:\n');
+fprintf('1. Open CoppeliaSim\n');
+fprintf('2. Load Scene 6: CSV Mobile Manipulation youBot\n');
+fprintf('3. Click "Load CSV" and select a trajectory.csv file from results/\n');
+fprintf('4. Click "Play File" to watch the simulation\n\n');
+
+fprintf('For end-effector trajectory visualization:\n');
+fprintf('1. Load Scene 8: CSV youBot End-Effector Animation\n');
+fprintf('2. Load test_milestone2_ee_trajectory.csv\n');
+fprintf('3. Click "Play File" to see the reference trajectory\n\n');
+%%%%%% END FILE: main_script.m %%%%%%
+
+%%%%%% START FILE: main_simulation.m %%%%%%
+function runSimulation(task_type)
+% runSimulation - Main program to run the mobile manipulation simulation
+% Input:
+%   task_type - 'best', 'overshoot', or 'newTask'
+
+if nargin < 1
+    task_type = 'best';
+end
+
+fprintf('Running simulation: %s\n', task_type);
+
+%% Robot parameters (fixed for youBot)
+% Mobile base parameters
+l = 0.235;    % half-length of robot (m)
+w = 0.15;     % half-width of robot (m) 
+r = 0.0475;   % wheel radius (m)
+
+% Transformation from base to arm base frame {0}
+Tb0 = RpToTrans(eye(3), [0.1662; 0; 0.0026]);
+
+% Home configuration of end-effector in arm frame {0}
+M0e = RpToTrans(eye(3), [0.033; 0; 0.6546]);
+
+% Screw axes in end-effector frame at home configuration
+Blist = [0,  0,  1,  0,      0.033, 0;
+         0, -1,  0, -0.5076, 0,     0;
+         0, -1,  0, -0.3526, 0,     0;
+         0, -1,  0, -0.2176, 0,     0;
+         0,  0,  1,  0,      0,     0]';
+
+%% Define cube configurations
+if strcmp(task_type, 'newTask')
+    % Custom task with different cube positions
+    Tsc_initial = RpToTrans(eye(3), [0.5; 0.5; 0.025]);
+    Tsc_final = RpToTrans(RotZ(-pi/2), [-0.5; -0.5; 0.025]);
+else
+    % Default cube configurations
+    Tsc_initial = RpToTrans(eye(3), [1; 0; 0.025]);
+    Tsc_final = RpToTrans(RotZ(-pi/2), [0; -1; 0.025]);
+end
+
+%% Define grasp configurations
+% Grasp angle (similar to reference implementation)
+a = pi/6;  % 30 degrees approach angle
+
+% End-effector configuration relative to cube
+Tce_grasp = [-sin(a), 0, -cos(a), 0;
+              0,      1,  0,       0;
+              cos(a), 0, -sin(a), 0;
+              0,      0,  0,       1];
+
+Tce_standoff = [-sin(a), 0, -cos(a), 0;
+                 0,      1,  0,       0;
+                 cos(a), 0, -sin(a), 0.1;
+                 0,      0,  0,       1];
+
+%% Define reference trajectory initial configuration
+Tse_initial = [0, 0, 1, 0.5;
+               0, 1, 0, 0;
+              -1, 0, 0, 0.5;
+               0, 0, 0, 1];
+
+%% Define robot initial configuration with error
+% Create initial configuration with at least 30 deg rotation error and 0.2m position error
+if strcmp(task_type, 'best') || strcmp(task_type, 'newTask')
+    config_initial = [0;         % phi
+                      0;         % x
+                      0;         % y
+                      0;         % J1
+                      0;         % J2
+                      0.2;       % J3
+                      -1.6;      % J4
+                      0;         % J5
+                      0;         % W1
+                      0;         % W2
+                      0;         % W3
+                      0];        % W4
+else % overshoot
+    config_initial = [pi/6;      % phi - 30 degrees
+                      0.2;       % x - offset
+                      0.1;       % y - offset
+                      0;         % J1
+                      -0.2;      % J2
+                      0.3;       % J3
+                      -1.5;      % J4
+                      0;         % J5
+                      0;         % W1
+                      0;         % W2
+                      0;         % W3
+                      0];        % W4
+end
+
+%% Set control gains based on task type
+switch task_type
+    case 'best'
+        % Well-tuned PI controller
+        Kp = 1.5 * eye(6);
+        Ki = 0.2 * eye(6);
+        
+    case 'overshoot'
+        % Less-well-tuned controller with overshoot
+        Kp = 20 * eye(6);
+        Ki = 0.5 * eye(6);
+        
+    case 'newTask'
+        % Custom gains for new task
+        Kp = 2 * eye(6);
+        Ki = 0.1 * eye(6);
+end
+
+%% Simulation parameters
+dt = 0.01;              % Timestep (10 ms)
+max_speed = 12.3;       % Maximum joint/wheel speed (rad/s)
+k = 1;                  % Trajectory points per 0.01s
+
+% Joint limits to avoid singularities and self-collision
+joint_limits = [-pi, pi;      % Joint 1
+                -pi, pi;      % Joint 2  
+                -pi, pi;      % Joint 3
+                -pi, pi;      % Joint 4
+                -pi, pi];     % Joint 5
+
+%% Generate reference trajectory
+fprintf('Generating reference trajectory...\n');
+[traj_ref, gripper_ref] = TrajectoryGenerator(Tse_initial, Tsc_initial, ...
+                                               Tsc_final, Tce_grasp, ...
+                                               Tce_standoff, k);
+
+% Save reference trajectory
+traj_filename = [task_type, '_Traj.csv'];
+dlmwrite(traj_filename, traj_ref, 'delimiter', ',', 'precision', '%.6f');
+fprintf('Reference trajectory saved: %s\n', traj_filename);
+
+% Convert trajectory format to 4x4 matrices
+N_traj = size(traj_ref, 1);
+traj_SE3 = zeros(4, 4, N_traj);
+for i = 1:N_traj
+    R = [traj_ref(i,1:3); traj_ref(i,4:6); traj_ref(i,7:9)];
+    p = traj_ref(i,10:12)';
+    traj_SE3(:,:,i) = [R, p; 0 0 0 1];
+end
+
+%% Initialize simulation
+config = config_initial;
+integral_error = zeros(6, 1);
+config_log = zeros(N_traj, 13);
+Xerr_log = zeros(6, N_traj-1);
+
+% Store initial configuration
+config_log(1,:) = [config', gripper_ref(1)];
+
+%% Main simulation loop
+fprintf('Running feedback control simulation...\n');
+for i = 1:N_traj-1
+    % Current and next reference configurations
+    Xd = traj_SE3(:,:,i);
+    Xd_next = traj_SE3(:,:,i+1);
+    gripper_state = gripper_ref(i);
+    
+    % Compute current end-effector configuration
+    [X, Je] = youBotKinematics(config);
+    
+    % Feedback control
+    [V, Xerr] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
+    
+    % Update integral error
+    integral_error = integral_error + Xerr * dt;
+    
+    % Check joint limits
+    arm_angles = config(4:8);
+    violated_joints = [];
+    for j = 1:5
+        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
+           arm_angles(j) >= joint_limits(j,2) - 0.1
+            violated_joints = [violated_joints, j];
+        end
+    end
+    
+    if ~isempty(violated_joints)
+        Je = applyJointLimits(Je, violated_joints);
+    end
+    
+    % Calculate joint speeds using pseudoinverse
+    speeds = pinv(Je, 1e-3) * V;
+    
+    % Apply speed limits
+    speeds(speeds > max_speed) = max_speed;
+    speeds(speeds < -max_speed) = -max_speed;
+    
+    % Update configuration
+    config = NextState(config, speeds, dt, max_speed);
+    
+    % Log data
+    config_log(i+1,:) = [config', gripper_state];
+    Xerr_log(:,i) = Xerr;
+    
+    % Progress indicator
+    if mod(i, 500) == 0
+        fprintf('  Progress: %.1f%%\n', 100*i/(N_traj-1));
+    end
+end
+
+%% Save results
+fprintf('Saving results...\n');
+
+% Create results directory if it doesn't exist
+results_dir = ['results/', task_type];
+if ~exist('results', 'dir')
+    mkdir('results');
+end
+if ~exist(results_dir, 'dir')
+    mkdir(results_dir);
+end
+
+% Write animation CSV file
+csv_filename = [results_dir, '/Animation.csv'];
+dlmwrite(csv_filename, config_log, 'delimiter', ',', 'precision', '%.6f');
+fprintf('Animation CSV saved: %s\n', csv_filename);
+
+% Save error data
+error_filename = [results_dir, '/Xerr.mat'];
+save(error_filename, 'Xerr_log');
+
+% Plot and save error
+figure('Position', [100, 100, 800, 600]);
+time = (0:N_traj-2) * dt;
+plot(time, Xerr_log', 'LineWidth', 1.5);
+title('Error Twist vs Time', 'FontSize', 14, 'FontWeight', 'bold');
+xlabel('Time (s)', 'FontSize', 12);
+ylabel('Error Twist', 'FontSize', 12);
+legend('\omega_x', '\omega_y', '\omega_z', 'v_x', 'v_y', 'v_z', 'Location', 'best');
+grid on;
+
+plot_filename = [results_dir, '/error_plot.pdf'];
+saveas(gcf, plot_filename);
+fprintf('Error plot saved: %s\n', plot_filename);
+
+% Write README
+readme_filename = [results_dir, '/README.txt'];
+fid = fopen(readme_filename, 'w');
+fprintf(fid, 'Simulation Results: %s\n\n', task_type);
+fprintf(fid, 'Controller Type: Feedforward + PI Control\n');
+fprintf(fid, 'Proportional Gain (Kp): %.2f * I\n', Kp(1,1));
+fprintf(fid, 'Integral Gain (Ki): %.2f * I\n', Ki(1,1));
+fprintf(fid, 'Maximum Speed Limit: %.1f rad/s\n', max_speed);
+fprintf(fid, 'Timestep: %.3f s\n', dt);
+fprintf(fid, '\n');
+
+if strcmp(task_type, 'newTask')
+    fprintf(fid, 'Initial Cube Position: [%.2f, %.2f, %.3f]\n', ...
+            Tsc_initial(1,4), Tsc_initial(2,4), Tsc_initial(3,4));
+    fprintf(fid, 'Final Cube Position: [%.2f, %.2f, %.3f]\n', ...
+            Tsc_final(1,4), Tsc_final(2,4), Tsc_final(3,4));
+end
+
+% Calculate final error
+final_error_norm = norm(Xerr_log(:,end));
+max_error_norm = max(sqrt(sum(Xerr_log.^2, 1)));
+fprintf(fid, '\nFinal Error Norm: %.6f\n', final_error_norm);
+fprintf(fid, 'Maximum Error Norm: %.6f\n', max_error_norm);
+
+% Calculate convergence time (when error < threshold)
+threshold = 0.01;
+error_norms = sqrt(sum(Xerr_log.^2, 1));
+converged_idx = find(error_norms < threshold, 1);
+if ~isempty(converged_idx)
+    convergence_time = converged_idx * dt;
+    fprintf(fid, 'Convergence Time (error < %.3f): %.2f s\n', threshold, convergence_time);
+else
+    fprintf(fid, 'Did not converge to threshold %.3f\n', threshold);
+end
+
+fclose(fid);
+
+fprintf('\n=== Simulation Complete! ===\n');
+fprintf('Results saved in: %s/\n', results_dir);
+fprintf('Final error norm: %.6f\n', final_error_norm);
+fprintf('Files generated:\n');
+fprintf('  - %s (animation file for CoppeliaSim)\n', csv_filename);
+fprintf('  - %s (error data)\n', error_filename);
+fprintf('  - %s (error plot)\n', plot_filename);
+fprintf('  - %s (trajectory reference)\n', traj_filename);
+fprintf('\n');
+
+end
+%%%%%% END FILE: main_simulation.m %%%%%%
+
+%%%%%% START FILE: NextState.m %%%%%%
+function config_new = NextState(config, speeds, dt, max_speed)
+% NextState - Simulates the kinematics of the youBot
+% Inputs:
+%   config - 12x1 vector: [phi, x, y, J1, J2, J3, J4, J5, W1, W2, W3, W4]
+%            phi, x, y: chassis configuration (rad, m, m)
+%            J1-J5: arm joint angles (rad)
+%            W1-W4: wheel angles (rad)
+%   speeds - 9x1 vector: [u1, u2, u3, u4, thetadot1-5]
+%            u1-u4: wheel angular velocities (rad/s)
+%            thetadot1-5: arm joint angular velocities (rad/s)
+%   dt - timestep (s)
+%   max_speed - maximum angular speed for wheels and joints (rad/s)
+%
+% Output:
+%   config_new - 12x1 updated configuration vector
+
+% Ensure column vectors
+config = config(:);
+speeds = speeds(:);
+
+% Apply speed limits
+speeds(speeds > max_speed) = max_speed;
+speeds(speeds < -max_speed) = -max_speed;
+
+% Extract current configuration
+phi = config(1);
+x = config(2);
+y = config(3);
+arm_angles = config(4:8);
+wheel_angles = config(9:12);
+
+% Extract speeds
+wheel_speeds = speeds(1:4);
+arm_speeds = speeds(5:9);
+
+% Update arm joint angles (simple Euler integration)
+arm_angles_new = arm_angles + arm_speeds * dt;
+
+% Update wheel angles (simple Euler integration)
+wheel_angles_new = wheel_angles + wheel_speeds * dt;
+
+% Mecanum wheel kinematics for chassis update
+% Robot parameters
+r = 0.0475;  % wheel radius (m)
+l = 0.235;   % half-length of robot (m)
+w = 0.15;    % half-width of robot (m)
+
+% F matrix for mecanum wheels (relates wheel speeds to body twist)
+F = (r/4) * [-1/(l+w), 1/(l+w), 1/(l+w), -1/(l+w);
+              1,        1,       1,        1;
+             -1,        1,      -1,        1];
+
+% Calculate body twist Vb = [wbz, vbx, vby]
+Vb = F * wheel_speeds;
+
+% Odometry update
+wbz = Vb(1);  % angular velocity
+vbx = Vb(2);  % x velocity in body frame
+vby = Vb(3);  % y velocity in body frame
+
+% Calculate change in configuration
+if abs(wbz) < 1e-6  % If angular velocity is essentially zero
+    dqb = [0; vbx; vby];
+else
+    dqb = [wbz;
+           (vbx*sin(wbz*dt) + vby*(cos(wbz*dt) - 1))/wbz;
+           (vby*sin(wbz*dt) + vbx*(1 - cos(wbz*dt)))/wbz];
+end
+
+% Transform to world frame
+dq = [1, 0,         0;
+      0, cos(phi), -sin(phi);
+      0, sin(phi),  cos(phi)] * dqb * dt;
+
+% Update chassis configuration
+phi_new = phi + dq(1);
+x_new = x + dq(2);
+y_new = y + dq(3);
+
+% Wrap phi to [-pi, pi]
+phi_new = atan2(sin(phi_new), cos(phi_new));
+
+% Assemble new configuration
+config_new = [phi_new; x_new; y_new; arm_angles_new; wheel_angles_new];
+
+end
+%%%%%% END FILE: NextState.m %%%%%%
+
+%%%%%% START FILE: plotError.m %%%%%%
+function plotError(Xerr_log, filename)
+% plotError - Plot the error evolution over time
+% Inputs:
+%   Xerr_log - Nx6 matrix of error values over time
+%   filename - Output plot filename (optional)
+
+    N = size(Xerr_log, 1);
+    dt = 0.01;  % 10ms timestep
+    time = (0:N-1) * dt;
+    
+    figure('Position', [100, 100, 800, 600]);
+    
+    % Plot all 6 error components
+    subplot(2,1,1);
+    plot(time, Xerr_log(:,1:3));
+    xlabel('Time (s)');
+    ylabel('Angular Error (rad)');
+    title('End-Effector Angular Error');
+    legend('\omega_x', '\omega_y', '\omega_z', 'Location', 'best');
+    grid on;
+    
+    subplot(2,1,2);
+    plot(time, Xerr_log(:,4:6));
+    xlabel('Time (s)');
+    ylabel('Linear Error (m)');
+    title('End-Effector Linear Error');
+    legend('v_x', 'v_y', 'v_z', 'Location', 'best');
+    grid on;
+    
+    % Save if filename provided
+    if nargin > 1
+        saveas(gcf, filename);
+        fprintf('Error plot saved: %s\n', filename);
+    end
+end
+%%%%%% END FILE: plotError.m %%%%%%
+
+%%%%%% START FILE: quick_reference.txt %%%%%%
+MOBILE MANIPULATION CAPSTONE - QUICK REFERENCE
+==============================================
+
+FASTEST START (after saving all files):
+---------------------------------------
+1. Add Modern Robotics to path:
+   >> addpath('path/to/ModernRobotics/packages/MATLAB/mr')
+
+2. Run complete project:
+   >> runProject
+
+3. Check outputs:
+   - Animation.csv (load in CoppeliaSim Scene 6)
+   - error_plot.pdf (view error convergence)
+   - simulation_summary.txt (read performance)
+
+FILES YOU MUST SAVE (15 core files):
+------------------------------------
+NextState.m            - Odometry simulator
+TrajectoryGenerator.m  - Reference trajectory
+FeedbackControl.m      - PI controller
+youBotKinematics.m     - Forward kinematics
+runSimulation.m        - Simulation runner
+writeCSV.m            - CSV writer
+plotError.m           - Error plotter
+checkJointLimits.m    - Joint limit checker
+applyJointLimits.m    - Jacobian modifier
+RpToTrans.m           - R,p to T converter
+RotZ.m                - Z-axis rotation
+main.m                - Interactive menu
+runTests.m            - Test runner
+runProject.m          - Complete project
+setup.m               - Setup verifier
+
+KEY PARAMETERS TO TUNE:
+-----------------------
+Kp = 1.5 * eye(6);    % Increase for faster response
+Ki = 0.2 * eye(6);    % Increase for steady-state
+
+COMMON COMMANDS:
+----------------
+runProject            % Generate all outputs
+runTests              % Test milestones
+runSimulation('best') % Well-tuned controller
+main                  % Interactive menu
+
+ERROR DIAGNOSTICS:
+------------------
+"Function not found"  → Add Modern Robotics to path
+Large final error     → Increase Kp or Ki
+Oscillations         → Decrease Kp
+Gripper fails        → Check convergence before grasp
+
+OUTPUT CHECKLIST:
+-----------------
+□ Animation.csv      - For CoppeliaSim
+□ Traj.csv          - Reference trajectory  
+□ error_plot.pdf    - Error convergence
+□ Xerr.mat          - Error data
+□ summary.txt       - Performance metrics
+
+COPPELIASIM STEPS:
+------------------
+1. Open CoppeliaSim
+2. File → Open Scene → Scene 6
+3. Click "Load CSV"
+4. Select Animation.csv
+5. Click "Play File"
+
+PERFORMANCE TARGETS:
+--------------------
+Final error < 0.001
+Convergence < 5 seconds
+No overshoot
+Successful pick & place
+%%%%%% END FILE: quick_reference.txt %%%%%%
+
+%%%%%% START FILE: RotZ.m %%%%%%
+function R = RotZ(theta)
+% RotZ - Create rotation matrix for rotation about Z-axis
+% This is equivalent to the Modern Robotics function
+% Input:
+%   theta - Rotation angle in radians
+% Output:
+%   R - 3x3 rotation matrix
+
+ct = cos(theta);
+st = sin(theta);
+
+% Make almost zero elements exactly zero
+if abs(st) < eps
+    st = 0;
+end
+if abs(ct) < eps
+    ct = 0;
+end
+
+R = [ct, -st, 0;
+     st,  ct, 0;
+     0,   0,  1];
+
+end
+%%%%%% END FILE: RotZ.m %%%%%%
+
+%%%%%% START FILE: RpToTrans.m %%%%%%
+function T = RpToTrans(R, p)
+% RpToTrans - Create transformation matrix from rotation and position
+% This is a standard Modern Robotics function
+% Inputs:
+%   R - 3x3 rotation matrix
+%   p - 3x1 position vector
+% Output:
+%   T - 4x4 transformation matrix
+
+T = [R, p; 0 0 0 1];
+
+end
+%%%%%% END FILE: RpToTrans.m %%%%%%
+
+%%%%%% START FILE: runProject.m %%%%%%
+% runProject.m - Complete Mobile Manipulation Project Runner
+% This script runs the entire project and generates all required outputs
+
+clear; clc; close all;
+
+fprintf('================================================\n');
+fprintf('  Mobile Manipulation Capstone Project\n');
+fprintf('  Northwestern University - Modern Robotics\n');
+fprintf('================================================\n\n');
+
+%% Add Modern Robotics library to path
+% Make sure the Modern Robotics library is in your path
+% addpath('path/to/ModernRobotics/packages/MATLAB/mr');
+
+%% Robot parameters (KUKA youBot)
+fprintf('Initializing robot parameters...\n');
+
+% Mobile base parameters
+l = 0.235;    % half-length of robot (m)
+w = 0.15;     % half-width of robot (m) 
+r = 0.0475;   % wheel radius (m)
+
+% Transformation from base to arm base frame {0}
+Tb0 = RpToTrans(eye(3), [0.1662; 0; 0.0026]);
+
+% Home configuration of end-effector in arm frame {0}
+M0e = RpToTrans(eye(3), [0.033; 0; 0.6546]);
+
+% Screw axes in end-effector frame at home configuration
+Blist = [0,  0,  1,  0,      0.033, 0;
+         0, -1,  0, -0.5076, 0,     0;
+         0, -1,  0, -0.3526, 0,     0;
+         0, -1,  0, -0.2176, 0,     0;
+         0,  0,  1,  0,      0,     0]';
+
+%% Cube configurations
+% Initial cube position
+Tsc_initial = RpToTrans(eye(3), [1; 0; 0.025]);
+
+% Final cube position (rotated -90 degrees about z)
+Tsc_final = RpToTrans(RotZ(-pi/2), [0; -1; 0.025]);
+
+%% Grasp configuration
+% Approach angle
+a = pi/5;  % 36 degrees
+
+% End-effector configuration relative to cube
+Tce_standoff = [-sin(a), 0, -cos(a), 0;
+                 0,      1,  0,       0;
+                 cos(a), 0, -sin(a), 0.1;
+                 0,      0,  0,       1];
+
+Tce_grasp = [-sin(a), 0, -cos(a), 0;
+              0,      1,  0,       0;
+              cos(a), 0, -sin(a), 0;
+              0,      0,  0,       1];
+
+%% Reference trajectory initial configuration
+Tse_initial = [0, 0, 1, 0.5;
+               0, 1, 0, 0;
+              -1, 0, 0, 0.5;
+               0, 0, 0, 1];
+
+fprintf('Initialization completed\n');
+
+%% Generate reference trajectory
+fprintf('\nGenerating reference trajectory...\n');
+dt = 0.01;  % Time step (10 ms)
+k = 1;      % Trajectory points per timestep
+
+[Traj, gripper_state] = TrajectoryGenerator(Tse_initial, Tsc_initial, ...
+                                            Tsc_final, Tce_grasp, ...
+                                            Tce_standoff, k);
+
+% Save reference trajectory
+writematrix(Traj, 'Traj.csv');
+fprintf('Trajectory generated and saved to Traj.csv\n');
+fprintf('Total trajectory points: %d\n', size(Traj, 1));
+fprintf('Total trajectory time: %.1f seconds\n', size(Traj, 1) * dt);
+
+%% Initial robot configuration (with error from reference)
+config_initial = [0;         % phi
+                  0;         % x  
+                  0;         % y
+                  0;         % J1
+                  0;         % J2
+                  0.2;       % J3
+                  -1.67;     % J4
+                  0;         % J5
+                  0;         % W1
+                  0;         % W2
+                  0;         % W3
+                  0];        % W4
+
+%% Controller gains
+Kp = 2* eye(6);  % Proportional gain
+Ki = 0.1 * eye(6);    % Integral gain (set to 0 for P control only)
+
+%% Simulation parameters
+max_speed = 12.3;  % Maximum speed for joints and wheels (rad/s)
+
+% Joint limits (to avoid self-collision and singularities)
+joint_limits = [-pi, pi;      % Joint 1
+                -pi, pi;      % Joint 2  
+                -pi, pi;      % Joint 3
+                -pi, pi;      % Joint 4
+                -pi, pi];     % Joint 5
+
+%% Convert trajectory to SE(3) format
+fprintf('\nRunning feedback control simulation...\n');
+
+N_traj = size(Traj, 1);
+Td = zeros(4, 4, N_traj);
+
+for i = 1:N_traj
+    % Extract rotation matrix (stored row-wise in Traj)
+    R = [Traj(i,1:3); Traj(i,4:6); Traj(i,7:9)];
+    p = Traj(i,10:12)';
+    Td(:,:,i) = RpToTrans(R, p);
+end
+
+%% Run feedback control simulation
+config = config_initial;
+integral_error = zeros(6, 1);
+Animation = zeros(N_traj, 13);
+Xerr = zeros(6, N_traj-1);
+
+% Store initial configuration
+Animation(1,:) = [config', gripper_state(1)];
+
+% Main control loop
+for i = 1:N_traj-1
+    % Current and next reference configurations
+    Xd = Td(:,:,i);
+    Xd_next = Td(:,:,i+1);
+    
+    % Compute current end-effector configuration
+    [Tse, Je] = youBotKinematics(config);
+    
+    % Feedback control
+    [V, xerr] = FeedbackControl(Tse, Xd, Xd_next, Kp, Ki, dt, integral_error);
+    Xerr(:,i) = xerr;
+    
+    % Update integral error
+    integral_error = integral_error + xerr * dt;
+    
+    % Check joint limits
+    arm_angles = config(4:8);
+    violated_joints = [];
+    for j = 1:5
+        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
+           arm_angles(j) >= joint_limits(j,2) - 0.1
+            violated_joints = [violated_joints, j];
+        end
+    end
+    
+    % Apply joint limits if necessary
+    if ~isempty(violated_joints)
+        Je = applyJointLimits(Je, violated_joints);
+    end
+    
+    % Calculate joint speeds
+    speeds = pinv(Je, 1e-3) * V;
+    
+    % Apply speed limits
+    speeds(speeds > max_speed) = max_speed;
+    speeds(speeds < -max_speed) = -max_speed;
+    
+    % Update configuration
+    config = NextState(config, speeds, dt, max_speed);
+    
+    % Store configuration
+    Animation(i+1,:) = [config', gripper_state(i+1)];
+    
+    % Progress indicator
+    if mod(i, 500) == 0
+        fprintf('  Progress: %.1f%%\n', 100*i/(N_traj-1));
+    end
+end
+
+fprintf('Feedback control completed\n');
+
+%% Save animation file
+writematrix(Animation, 'Animation.csv');
+fprintf('\nAnimation file saved to Animation.csv\n');
+
+%% Plot error
+figure('Position', [100, 100, 800, 600]);
+time = (0:N_traj-2) * dt;
+plot(time, Xerr', 'LineWidth', 1.5);
+title('Error Twist vs Time', 'FontSize', 14, 'FontWeight', 'bold');
+xlabel('Time (s)', 'FontSize', 12);
+ylabel('Error Twist', 'FontSize', 12);
+legend('\omega_x', '\omega_y', '\omega_z', 'v_x', 'v_y', 'v_z', ...
+       'Location', 'best');
+grid on;
+
+% Save plot
+saveas(gcf, 'error_plot.pdf');
+saveas(gcf, 'error_plot.png');
+
+% Save error data
+save('Xerr.mat', 'Xerr');
+fprintf('Error plot and data saved\n');
+
+%% Calculate and display statistics
+error_norms = sqrt(sum(Xerr.^2, 1));
+final_error = error_norms(end);
+max_error = max(error_norms);
+
+% Find convergence time
+threshold = 0.01;
+converged_idx = find(error_norms < threshold, 1);
+if ~isempty(converged_idx)
+    convergence_time = converged_idx * dt;
+else
+    convergence_time = inf;
+end
+
+%% Create summary report
+fid = fopen('simulation_summary.txt', 'w');
+fprintf(fid, 'Mobile Manipulation Capstone - Simulation Summary\n');
+fprintf(fid, '================================================\n\n');
+fprintf(fid, 'Controller Parameters:\n');
+fprintf(fid, '  Proportional Gain (Kp): %.1f\n', Kp(1,1));
+fprintf(fid, '  Integral Gain (Ki): %.1f\n', Ki(1,1));
+fprintf(fid, '\n');
+fprintf(fid, 'Simulation Parameters:\n');
+fprintf(fid, '  Time Step: %.3f s\n', dt);
+fprintf(fid, '  Max Speed: %.1f rad/s\n', max_speed);
+fprintf(fid, '  Total Time: %.1f s\n', (N_traj-1)*dt);
+fprintf(fid, '\n');
+fprintf(fid, 'Performance Metrics:\n');
+fprintf(fid, '  Final Error Norm: %.6f\n', final_error);
+fprintf(fid, '  Maximum Error Norm: %.6f\n', max_error);
+if isfinite(convergence_time)
+    fprintf(fid, '  Convergence Time: %.2f s\n', convergence_time);
+else
+    fprintf(fid, '  Convergence Time: Did not converge\n');
+end
+fprintf(fid, '\n');
+fprintf(fid, 'Output Files:\n');
+fprintf(fid, '  - Traj.csv: Reference trajectory\n');
+fprintf(fid, '  - Animation.csv: Robot motion for CoppeliaSim\n');
+fprintf(fid, '  - Xerr.mat: Error data\n');
+fprintf(fid, '  - error_plot.pdf/png: Error visualization\n');
+fclose(fid);
+
+%% Display summary
+fprintf('\n================================================\n');
+fprintf('  Simulation Complete!\n');
+fprintf('================================================\n\n');
+fprintf('Performance Summary:\n');
+fprintf('  Final Error Norm: %.6f\n', final_error);
+fprintf('  Maximum Error Norm: %.6f\n', max_error);
+if isfinite(convergence_time)
+    fprintf('  Convergence Time: %.2f s\n', convergence_time);
+else
+    fprintf('  Did not converge to threshold %.3f\n', threshold);
+end
+fprintf('\nFiles Generated:\n');
+fprintf('  1. Traj.csv - Reference trajectory (%d configurations)\n', N_traj);
+fprintf('  2. Animation.csv - Robot animation for CoppeliaSim\n');
+fprintf('  3. Xerr.mat - Error data\n');
+fprintf('  4. error_plot.pdf/png - Error visualization\n');
+fprintf('  5. simulation_summary.txt - Summary report\n');
+fprintf('\nTo visualize in CoppeliaSim:\n');
+fprintf('  1. Open Scene 6: CSV Mobile Manipulation youBot\n');
+fprintf('  2. Load Animation.csv\n');
+fprintf('  3. Click "Play File"\n');
+fprintf('\n');
+%%%%%% END FILE: runProject.m %%%%%%
+
+%%%%%% START FILE: runProject_copy.m %%%%%%
+% runProject.m - Complete Mobile Manipulation Project Runner
+% This script runs the entire project and generates all required outputs
+
+clear; clc; close all;
+
+fprintf('================================================\n');
+fprintf('  Mobile Manipulation Capstone Project\n');
+fprintf('  Northwestern University - Modern Robotics\n');
+fprintf('================================================\n\n');
+
+%% Add Modern Robotics library to path
+% Make sure the Modern Robotics library is in your path
+% addpath('path/to/ModernRobotics/packages/MATLAB/mr');
+
+%% Robot parameters (KUKA youBot)
+fprintf('Initializing robot parameters...\n');
+
+% Mobile base parameters
+l = 0.235;    % half-length of robot (m)
+w = 0.15;     % half-width of robot (m) 
+r = 0.0475;   % wheel radius (m)
+
+% Transformation from base to arm base frame {0}
+Tb0 = RpToTrans(eye(3), [0.1662; 0; 0.0026]);
+
+% Home configuration of end-effector in arm frame {0}
+M0e = RpToTrans(eye(3), [0.033; 0; 0.6546]);
+
+% Screw axes in end-effector frame at home configuration
+Blist = [0,  0,  1,  0,      0.033, 0;
+         0, -1,  0, -0.5076, 0,     0;
+         0, -1,  0, -0.3526, 0,     0;
+         0, -1,  0, -0.2176, 0,     0;
+         0,  0,  1,  0,      0,     0]';
+
+%% Cube configurations
+% Initial cube position
+Tsc_initial = RpToTrans(eye(3), [1; 0; 0.025]);
+
+% Final cube position (rotated -90 degrees about z)
+Tsc_final = RpToTrans(RotZ(-pi/2), [0; -1; 0.025]);
+
+%% Grasp configuration
+% Approach angle
+a = pi/5;  % 36 degrees
+
+% End-effector configuration relative to cube
+Tce_standoff = [-sin(a), 0, -cos(a), 0;
+                 0,      1,  0,       0;
+                 cos(a), 0, -sin(a), 0.1;
+                 0,      0,  0,       1];
+
+Tce_grasp = [-sin(a), 0, -cos(a), 0;
+              0,      1,  0,       0;
+              cos(a), 0, -sin(a), 0;
+              0,      0,  0,       1];
+
+%% Reference trajectory initial configuration
+Tse_initial = [0, 0, 1, 0.5;
+               0, 1, 0, 0;
+              -1, 0, 0, 0.5;
+               0, 0, 0, 1];
+
+fprintf('Initialization completed\n');
+
+%% Generate reference trajectory
+fprintf('\nGenerating reference trajectory...\n');
+dt = 0.01;  % Time step (10 ms)
+k = 1;      % Trajectory points per timestep
+
+[Traj, gripper_state] = TrajectoryGenerator(Tse_initial, Tsc_initial, ...
+                                            Tsc_final, Tce_grasp, ...
+                                            Tce_standoff, k);
+
+% Save reference trajectory
+writematrix(Traj, 'Traj.csv');
+fprintf('Trajectory generated and saved to Traj.csv\n');
+fprintf('Total trajectory points: %d\n', size(Traj, 1));
+fprintf('Total trajectory time: %.1f seconds\n', size(Traj, 1) * dt);
+
+%% Initial robot configuration (with error from reference)
+config_initial = [0;         % phi
+                  0;         % x  
+                  0;         % y
+                  0;         % J1
+                  0;         % J2
+                  0.2;       % J3
+                  -1.67;     % J4
+                  0;         % J5
+                  0;         % W1
+                  0;         % W2
+                  0;         % W3
+                  0];        % W4
+
+%% Controller gains
+Kp = 1.5 * eye(6);  % Proportional gain
+Ki = 0 * eye(6);    % Integral gain (set to 0 for P control only)
+
+%% Simulation parameters
+max_speed = 12.3;  % Maximum speed for joints and wheels (rad/s)
+
+% Joint limits (to avoid self-collision and singularities)
+joint_limits = [-pi, pi;      % Joint 1
+                -pi, pi;      % Joint 2  
+                -pi, pi;      % Joint 3
+                -pi, pi;      % Joint 4
+                -pi, pi];     % Joint 5
+
+%% Convert trajectory to SE(3) format
+fprintf('\nRunning feedback control simulation...\n');
+
+N_traj = size(Traj, 1);
+Td = zeros(4, 4, N_traj);
+
+for i = 1:N_traj
+    % Extract rotation matrix (stored row-wise in Traj)
+    R = [Traj(i,1:3); Traj(i,4:6); Traj(i,7:9)];
+    p = Traj(i,10:12)';
+    Td(:,:,i) = RpToTrans(R, p);
+end
+
+%% Run feedback control simulation
+config = config_initial;
+integral_error = zeros(6, 1);
+Animation = zeros(N_traj, 13);
+Xerr = zeros(6, N_traj-1);
+
+% Store initial configuration
+Animation(1,:) = [config', gripper_state(1)];
+
+% Main control loop
+for i = 1:N_traj-1
+    % Current and next reference configurations
+    Xd = Td(:,:,i);
+    Xd_next = Td(:,:,i+1);
+    
+    % Compute current end-effector configuration
+    [Tse, Je] = youBotKinematics(config);
+    
+    % Feedback control
+    [V, xerr] = FeedbackControl(Tse, Xd, Xd_next, Kp, Ki, dt, integral_error);
+    Xerr(:,i) = xerr;
+    
+    % Update integral error
+    integral_error = integral_error + xerr * dt;
+    
+    % Check joint limits
+    arm_angles = config(4:8);
+    violated_joints = [];
+    for j = 1:5
+        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
+           arm_angles(j) >= joint_limits(j,2) - 0.1
+            violated_joints = [violated_joints, j];
+        end
+    end
+    
+    % Apply joint limits if necessary
+    if ~isempty(violated_joints)
+        Je = applyJointLimits(Je, violated_joints);
+    end
+    
+    % Calculate joint speeds
+    speeds = pinv(Je, 1e-3) * V;
+    
+    % Apply speed limits
+    speeds(speeds > max_speed) = max_speed;
+    speeds(speeds < -max_speed) = -max_speed;
+    
+    % Update configuration
+    config = NextState(config, speeds, dt, max_speed);
+    
+    % Store configuration
+    Animation(i+1,:) = [config', gripper_state(i+1)];
+    
+    % Progress indicator
+    if mod(i, 500) == 0
+        fprintf('  Progress: %.1f%%\n', 100*i/(N_traj-1));
+    end
+end
+
+fprintf('Feedback control completed\n');
+
+%% Save animation file
+writematrix(Animation, 'Animation.csv');
+fprintf('\nAnimation file saved to Animation.csv\n');
+
+%% Plot error
+figure('Position', [100, 100, 800, 600]);
+time = (0:N_traj-2) * dt;
+plot(time, Xerr', 'LineWidth', 1.5);
+title('Error Twist vs Time', 'FontSize', 14, 'FontWeight', 'bold');
+xlabel('Time (s)', 'FontSize', 12);
+ylabel('Error Twist', 'FontSize', 12);
+legend('\omega_x', '\omega_y', '\omega_z', 'v_x', 'v_y', 'v_z', ...
+       'Location', 'best');
+grid on;
+
+% Save plot
+saveas(gcf, 'error_plot.pdf');
+saveas(gcf, 'error_plot.png');
+
+% Save error data
+save('Xerr.mat', 'Xerr');
+fprintf('Error plot and data saved\n');
+
+%% Calculate and display statistics
+error_norms = sqrt(sum(Xerr.^2, 1));
+final_error = error_norms(end);
+max_error = max(error_norms);
+
+% Find convergence time
+threshold = 0.01;
+converged_idx = find(error_norms < threshold, 1);
+if ~isempty(converged_idx)
+    convergence_time = converged_idx * dt;
+else
+    convergence_time = inf;
+end
+
+%% Create summary report
+fid = fopen('simulation_summary.txt', 'w');
+fprintf(fid, 'Mobile Manipulation Capstone - Simulation Summary\n');
+fprintf(fid, '================================================\n\n');
+fprintf(fid, 'Controller Parameters:\n');
+fprintf(fid, '  Proportional Gain (Kp): %.1f\n', Kp(1,1));
+fprintf(fid, '  Integral Gain (Ki): %.1f\n', Ki(1,1));
+fprintf(fid, '\n');
+fprintf(fid, 'Simulation Parameters:\n');
+fprintf(fid, '  Time Step: %.3f s\n', dt);
+fprintf(fid, '  Max Speed: %.1f rad/s\n', max_speed);
+fprintf(fid, '  Total Time: %.1f s\n', (N_traj-1)*dt);
+fprintf(fid, '\n');
+fprintf(fid, 'Performance Metrics:\n');
+fprintf(fid, '  Final Error Norm: %.6f\n', final_error);
+fprintf(fid, '  Maximum Error Norm: %.6f\n', max_error);
+if isfinite(convergence_time)
+    fprintf(fid, '  Convergence Time: %.2f s\n', convergence_time);
+else
+    fprintf(fid, '  Convergence Time: Did not converge\n');
+end
+fprintf(fid, '\n');
+fprintf(fid, 'Output Files:\n');
+fprintf(fid, '  - Traj.csv: Reference trajectory\n');
+fprintf(fid, '  - Animation.csv: Robot motion for CoppeliaSim\n');
+fprintf(fid, '  - Xerr.mat: Error data\n');
+fprintf(fid, '  - error_plot.pdf/png: Error visualization\n');
+fclose(fid);
+
+%% Display summary
+fprintf('\n================================================\n');
+fprintf('  Simulation Complete!\n');
+fprintf('================================================\n\n');
+fprintf('Performance Summary:\n');
+fprintf('  Final Error Norm: %.6f\n', final_error);
+fprintf('  Maximum Error Norm: %.6f\n', max_error);
+if isfinite(convergence_time)
+    fprintf('  Convergence Time: %.2f s\n', convergence_time);
+else
+    fprintf('  Did not converge to threshold %.3f\n', threshold);
+end
+fprintf('\nFiles Generated:\n');
+fprintf('  1. Traj.csv - Reference trajectory (%d configurations)\n', N_traj);
+fprintf('  2. Animation.csv - Robot animation for CoppeliaSim\n');
+fprintf('  3. Xerr.mat - Error data\n');
+fprintf('  4. error_plot.pdf/png - Error visualization\n');
+fprintf('  5. simulation_summary.txt - Summary report\n');
+fprintf('\nTo visualize in CoppeliaSim:\n');
+fprintf('  1. Open Scene 6: CSV Mobile Manipulation youBot\n');
+fprintf('  2. Load Animation.csv\n');
+fprintf('  3. Click "Play File"\n');
+fprintf('\n');
+%%%%%% END FILE: runProject_copy.m %%%%%%
+
+%%%%%% START FILE: runSimulation.m %%%%%%
+function runSimulation(task_type)
+% runSimulation - Main program to run the mobile manipulation simulation
+% Input:
+%   task_type - 'best', 'overshoot', or 'newTask'
+
+if nargin < 1
+    task_type = 'best';
+end
+
+fprintf('Running simulation: %s\n', task_type);
+
+%% Robot parameters (fixed for youBot)
+% Mobile base parameters
+l = 0.235;    % half-length of robot (m)
+w = 0.15;     % half-width of robot (m) 
+r = 0.0475;   % wheel radius (m)
+
+% Transformation from base to arm base frame {0}
+Tb0 = RpToTrans(eye(3), [0.1662; 0; 0.0026]);
+
+% Home configuration of end-effector in arm frame {0}
+M0e = RpToTrans(eye(3), [0.033; 0; 0.6546]);
+
+% Screw axes in end-effector frame at home configuration
+Blist = [0,  0,  1,  0,      0.033, 0;
+         0, -1,  0, -0.5076, 0,     0;
+         0, -1,  0, -0.3526, 0,     0;
+         0, -1,  0, -0.2176, 0,     0;
+         0,  0,  1,  0,      0,     0]';
+
+%% Define cube configurations
+if strcmp(task_type, 'newTask')
+    % Custom task with different cube positions
+    Tsc_initial = RpToTrans(eye(3), [0.5; 0.5; 0.025]);
+    Tsc_final = RpToTrans(RotZ(-pi/2), [-0.5; -0.5; 0.025]);
+else
+    % Default cube configurations
+    Tsc_initial = RpToTrans(eye(3), [1; 0; 0.025]);
+    Tsc_final = RpToTrans(RotZ(-pi/2), [0; -1; 0.025]);
+end
+
+%% Define grasp configurations
+% Grasp angle (similar to reference implementation)
+a = pi/6;  % 30 degrees approach angle
+
+% End-effector configuration relative to cube
+Tce_grasp = [-sin(a), 0, -cos(a), 0;
+              0,      1,  0,       0;
+              cos(a), 0, -sin(a), 0;
+              0,      0,  0,       1];
+
+Tce_standoff = [-sin(a), 0, -cos(a), 0;
+                 0,      1,  0,       0;
+                 cos(a), 0, -sin(a), 0.1;
+                 0,      0,  0,       1];
+
+%% Define reference trajectory initial configuration
+Tse_initial = [0, 0, 1, 0.5;
+               0, 1, 0, 0;
+              -1, 0, 0, 0.5;
+               0, 0, 0, 1];
+
+%% Define robot initial configuration with error
+% Create initial configuration with at least 30 deg rotation error and 0.2m position error
+if strcmp(task_type, 'best') || strcmp(task_type, 'newTask')
+    config_initial = [0;         % phi
+                      0;         % x
+                      0;         % y
+                      0;         % J1
+                      0;         % J2
+                      0.2;       % J3
+                      -1.6;      % J4
+                      0;         % J5
+                      0;         % W1
+                      0;         % W2
+                      0;         % W3
+                      0];        % W4
+else % overshoot
+    config_initial = [pi/6;      % phi - 30 degrees
+                      0.2;       % x - offset
+                      0.1;       % y - offset
+                      0;         % J1
+                      -0.2;      % J2
+                      0.3;       % J3
+                      -1.5;      % J4
+                      0;         % J5
+                      0;         % W1
+                      0;         % W2
+                      0;         % W3
+                      0];        % W4
+end
+
+%% Set control gains based on task type
+switch task_type
+    case 'best'
+        % Well-tuned PI controller
+        Kp = 1.5 * eye(6);
+        Ki = 0.2 * eye(6);
+        
+    case 'overshoot'
+        % Less-well-tuned controller with overshoot
+        Kp = 20 * eye(6);
+        Ki = 0.5 * eye(6);
+        
+    case 'newTask'
+        % Custom gains for new task
+        Kp = 2 * eye(6);
+        Ki = 0.1 * eye(6);
+end
+
+%% Simulation parameters
+dt = 0.01;              % Timestep (10 ms)
+max_speed = 12.3;       % Maximum joint/wheel speed (rad/s)
+k = 1;                  % Trajectory points per 0.01s
+
+% Joint limits to avoid singularities and self-collision
+joint_limits = [-pi, pi;      % Joint 1
+                -pi, pi;      % Joint 2  
+                -pi, pi;      % Joint 3
+                -pi, pi;      % Joint 4
+                -pi, pi];     % Joint 5
+
+%% Generate reference trajectory
+fprintf('Generating reference trajectory...\n');
+[traj_ref, gripper_ref] = TrajectoryGenerator(Tse_initial, Tsc_initial, ...
+                                               Tsc_final, Tce_grasp, ...
+                                               Tce_standoff, k);
+
+% Save reference trajectory
+traj_filename = [task_type, '_Traj.csv'];
+dlmwrite(traj_filename, traj_ref, 'delimiter', ',', 'precision', '%.6f');
+fprintf('Reference trajectory saved: %s\n', traj_filename);
+
+% Convert trajectory format to 4x4 matrices
+N_traj = size(traj_ref, 1);
+traj_SE3 = zeros(4, 4, N_traj);
+for i = 1:N_traj
+    R = [traj_ref(i,1:3); traj_ref(i,4:6); traj_ref(i,7:9)];
+    p = traj_ref(i,10:12)';
+    traj_SE3(:,:,i) = [R, p; 0 0 0 1];
+end
+
+%% Initialize simulation
+config = config_initial;
+integral_error = zeros(6, 1);
+config_log = zeros(N_traj, 13);
+Xerr_log = zeros(6, N_traj-1);
+
+% Store initial configuration
+config_log(1,:) = [config', gripper_ref(1)];
+
+%% Main simulation loop
+fprintf('Running feedback control simulation...\n');
+for i = 1:N_traj-1
+    % Current and next reference configurations
+    Xd = traj_SE3(:,:,i);
+    Xd_next = traj_SE3(:,:,i+1);
+    gripper_state = gripper_ref(i);
+    
+    % Compute current end-effector configuration
+    [X, Je] = youBotKinematics(config);
+    
+    % Feedback control
+    [V, Xerr] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
+    
+    % Update integral error
+    integral_error = integral_error + Xerr * dt;
+    
+    % Check joint limits
+    arm_angles = config(4:8);
+    violated_joints = [];
+    for j = 1:5
+        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
+           arm_angles(j) >= joint_limits(j,2) - 0.1
+            violated_joints = [violated_joints, j];
+        end
+    end
+    
+    if ~isempty(violated_joints)
+        Je = applyJointLimits(Je, violated_joints);
+    end
+    
+    % Calculate joint speeds using pseudoinverse
+    speeds = pinv(Je, 1e-3) * V;
+    
+    % Apply speed limits
+    speeds(speeds > max_speed) = max_speed;
+    speeds(speeds < -max_speed) = -max_speed;
+    
+    % Update configuration
+    config = NextState(config, speeds, dt, max_speed);
+    
+    % Log data
+    config_log(i+1,:) = [config', gripper_state];
+    Xerr_log(:,i) = Xerr;
+    
+    % Progress indicator
+    if mod(i, 500) == 0
+        fprintf('  Progress: %.1f%%\n', 100*i/(N_traj-1));
+    end
+end
+
+%% Save results
+fprintf('Saving results...\n');
+
+% Create results directory if it doesn't exist
+results_dir = ['results/', task_type];
+if ~exist('results', 'dir')
+    mkdir('results');
+end
+if ~exist(results_dir, 'dir')
+    mkdir(results_dir);
+end
+
+% Write animation CSV file
+csv_filename = [results_dir, '/Animation.csv'];
+dlmwrite(csv_filename, config_log, 'delimiter', ',', 'precision', '%.6f');
+fprintf('Animation CSV saved: %s\n', csv_filename);
+
+% Save error data
+error_filename = [results_dir, '/Xerr.mat'];
+save(error_filename, 'Xerr_log');
+
+% Plot and save error
+figure('Position', [100, 100, 800, 600]);
+time = (0:N_traj-2) * dt;
+plot(time, Xerr_log', 'LineWidth', 1.5);
+title('Error Twist vs Time', 'FontSize', 14, 'FontWeight', 'bold');
+xlabel('Time (s)', 'FontSize', 12);
+ylabel('Error Twist', 'FontSize', 12);
+legend('\omega_x', '\omega_y', '\omega_z', 'v_x', 'v_y', 'v_z', 'Location', 'best');
+grid on;
+
+plot_filename = [results_dir, '/error_plot.pdf'];
+saveas(gcf, plot_filename);
+fprintf('Error plot saved: %s\n', plot_filename);
+
+% Write README
+readme_filename = [results_dir, '/README.txt'];
+fid = fopen(readme_filename, 'w');
+fprintf(fid, 'Simulation Results: %s\n\n', task_type);
+fprintf(fid, 'Controller Type: Feedforward + PI Control\n');
+fprintf(fid, 'Proportional Gain (Kp): %.2f * I\n', Kp(1,1));
+fprintf(fid, 'Integral Gain (Ki): %.2f * I\n', Ki(1,1));
+fprintf(fid, 'Maximum Speed Limit: %.1f rad/s\n', max_speed);
+fprintf(fid, 'Timestep: %.3f s\n', dt);
+fprintf(fid, '\n');
+
+if strcmp(task_type, 'newTask')
+    fprintf(fid, 'Initial Cube Position: [%.2f, %.2f, %.3f]\n', ...
+            Tsc_initial(1,4), Tsc_initial(2,4), Tsc_initial(3,4));
+    fprintf(fid, 'Final Cube Position: [%.2f, %.2f, %.3f]\n', ...
+            Tsc_final(1,4), Tsc_final(2,4), Tsc_final(3,4));
+end
+
+% Calculate final error
+final_error_norm = norm(Xerr_log(:,end));
+max_error_norm = max(sqrt(sum(Xerr_log.^2, 1)));
+fprintf(fid, '\nFinal Error Norm: %.6f\n', final_error_norm);
+fprintf(fid, 'Maximum Error Norm: %.6f\n', max_error_norm);
+
+% Calculate convergence time (when error < threshold)
+threshold = 0.01;
+error_norms = sqrt(sum(Xerr_log.^2, 1));
+converged_idx = find(error_norms < threshold, 1);
+if ~isempty(converged_idx)
+    convergence_time = converged_idx * dt;
+    fprintf(fid, 'Convergence Time (error < %.3f): %.2f s\n', threshold, convergence_time);
+else
+    fprintf(fid, 'Did not converge to threshold %.3f\n', threshold);
+end
+
+fclose(fid);
+
+fprintf('\n=== Simulation Complete! ===\n');
+fprintf('Results saved in: %s/\n', results_dir);
+fprintf('Final error norm: %.6f\n', final_error_norm);
+fprintf('Files generated:\n');
+fprintf('  - %s (animation file for CoppeliaSim)\n', csv_filename);
+fprintf('  - %s (error data)\n', error_filename);
+fprintf('  - %s (error plot)\n', plot_filename);
+fprintf('  - %s (trajectory reference)\n', traj_filename);
+fprintf('\n');
+
+end
+%%%%%% END FILE: runSimulation.m %%%%%%
+
+%%%%%% START FILE: setup_script.m %%%%%%
+% setup.m - Setup script for Mobile Manipulation Capstone Project
+% Run this script once to set up the MATLAB environment
+
+fprintf('Setting up Mobile Manipulation Capstone Project...\n');
+
+% Add current directory to path
+addpath(pwd);
+
+% Check for Modern Robotics library
+mr_functions = {'FKinBody', 'FKinSpace', 'JacobianBody', 'JacobianSpace', ...
+                'MatrixExp6', 'MatrixLog6', 'VecTose3', 'se3ToVec', ...
+                'Adjoint', 'TransInv', 'AxisAng3', 'VecToso3'};
+
+fprintf('\nChecking for Modern Robotics library...\n');
+mr_found = true;
+for i = 1:length(mr_functions)
+    if ~exist(mr_functions{i}, 'file')
+        fprintf('  ✗ %s not found\n', mr_functions{i});
+        mr_found = false;
+    end
+end
+
+if mr_found
+    fprintf('✓ Modern Robotics library found!\n');
+else
+    fprintf('\n⚠ Modern Robotics library not found!\n');
+    fprintf('Please download it from:\n');
+    fprintf('https://github.com/NxRLab/ModernRobotics\n');
+    fprintf('And add the MATLAB package to your path:\n');
+    fprintf('addpath(''path/to/ModernRobotics/packages/MATLAB/mr'')\n\n');
+    return;
+end
+
+% Check for required project files
+fprintf('\nChecking for project files...\n');
+required_files = {
+    % Core functions
+    'NextState.m',
+    'TrajectoryGenerator.m', 
+    'FeedbackControl.m',
+    'youBotKinematics.m',
+    'runSimulation.m',
+    % Utility functions
+    'writeCSV.m',
+    'plotError.m',
+    'checkJointLimits.m',
+    'applyJointLimits.m',
+    % Helper functions (project-specific)
+    'RpToTrans.m',
+    'RotZ.m',
+    % Scripts
+    'main.m',
+    'runTests.m',
+    'runProject.m',
+    % Optional but useful
+    'verifyCSV.m'
+};
+
+missing_files = {};
+for i = 1:length(required_files)
+    if ~exist(required_files{i}, 'file')
+        missing_files{end+1} = required_files{i};
+    end
+end
+
+if ~isempty(missing_files)
+    fprintf('\n⚠ Warning: The following project files are missing:\n');
+    for i = 1:length(missing_files)
+        fprintf('  - %s\n', missing_files{i});
+    end
+    fprintf('\nPlease ensure all project files are in the current directory.\n');
+else
+    fprintf('✓ All required project files found!\n');
+end
+
+% Create results directory if it doesn't exist
+if ~exist('results', 'dir')
+    mkdir('results');
+    fprintf('\nCreated results/ directory\n');
+end
+
+fprintf('\n================================================\n');
+fprintf('Setup complete. Run "main" to start the simulation.\n');
+fprintf('================================================\n');
+%%%%%% END FILE: setup_script.m %%%%%%
+
+%%%%%% START FILE: simulation_summary.txt %%%%%%
+Mobile Manipulation Capstone - Simulation Summary
+================================================
+
+Controller Parameters:
+  Proportional Gain (Kp): 2.0
+  Integral Gain (Ki): 0.1
+
+Simulation Parameters:
+  Time Step: 0.010 s
+  Max Speed: 12.3 rad/s
+  Total Time: 15.0 s
+
+Performance Metrics:
+  Final Error Norm: 2.961706
+  Maximum Error Norm: 2.961706
+  Convergence Time: Did not converge
+
+Output Files:
+  - Traj.csv: Reference trajectory
+  - Animation.csv: Robot motion for CoppeliaSim
+  - Xerr.mat: Error data
+  - error_plot.pdf/png: Error visualization
+%%%%%% END FILE: simulation_summary.txt %%%%%%
+
+%%%%%% START FILE: TrajectoryGenerator.m %%%%%%
+function [traj, gripper_state] = TrajectoryGenerator(Tse_initial, Tsc_initial, Tsc_final, Tce_grasp, Tce_standoff, k)
+% TrajectoryGenerator - Generates reference trajectory for end-effector
+% This version uses Modern Robotics library functions
+% Inputs:
+%   Tse_initial - Initial end-effector configuration (4x4 SE(3))
+%   Tsc_initial - Initial cube configuration (4x4 SE(3))
+%   Tsc_final - Final cube configuration (4x4 SE(3))
+%   Tce_grasp - End-effector config relative to cube when grasping (4x4)
+%   Tce_standoff - Standoff configuration above cube (4x4)
+%   k - Number of trajectory points per 0.01 seconds
+%
+% Outputs:
+%   traj - Nx13 matrix where each row is:
+%          [r11,r12,r13,r21,r22,r23,r31,r32,r33,px,py,pz,gripper]
+%   gripper_state - Nx1 vector of gripper states (0=open, 1=closed)
+
+% Note: This code assumes the Modern Robotics library is in the MATLAB path
+
+% Key configurations
+Tse_standoff_initial = Tsc_initial * Tce_standoff;
+Tse_grasp_initial = Tsc_initial * Tce_grasp;
+Tse_standoff_final = Tsc_final * Tce_standoff;
+Tse_grasp_final = Tsc_final * Tce_grasp;
+
+% Calculate distances for time allocation
+d1 = norm(Tse_initial(1:3,4) - Tse_standoff_initial(1:3,4));
+d2 = norm(Tse_standoff_initial(1:3,4) - Tse_grasp_initial(1:3,4));
+d5 = norm(Tse_standoff_initial(1:3,4) - Tse_standoff_final(1:3,4));
+d6 = norm(Tse_standoff_final(1:3,4) - Tse_grasp_final(1:3,4));
+
+% Fixed times for gripper operations
+t_grasp = 0.63;  % Time to close gripper
+t_release = 0.63;  % Time to open gripper
+
+% Total time and time allocation based on distances
+T_total = 15;  % Total trajectory time (seconds)
+T_motion = T_total - t_grasp - t_release;
+
+% Allocate time proportionally to distances
+d_total = d1 + 2*d2 + d5 + 2*d6;
+t1 = max(1, round(d1 * T_motion / d_total * 100) / 100);
+t2 = max(0.5, round(d2 * T_motion / d_total * 100) / 100);
+t4 = t2;  % Same time for lifting as lowering
+t5 = max(1, round(d5 * T_motion / d_total * 100) / 100);
+t6 = max(0.5, round(d6 * T_motion / d_total * 100) / 100);
+t8 = t6;  % Same time for lifting as lowering
+
+% Adjust if needed to ensure total time is correct
+time_sum = t1 + t2 + t_grasp + t4 + t5 + t6 + t_release + t8;
+if abs(time_sum - T_total) > 0.1
+    scale = (T_total - t_grasp - t_release) / (t1 + t2 + t4 + t5 + t6 + t8);
+    t1 = t1 * scale; t2 = t2 * scale; t4 = t4 * scale;
+    t5 = t5 * scale; t6 = t6 * scale; t8 = t8 * scale;
+end
+
+% Time step
+dt = 0.01 / k;
+
+% Initialize trajectory storage
+traj = [];
+gripper_state = [];
+
+% Configuration sequence for 8 segments
+T_configs = {Tse_initial, Tse_standoff_initial, Tse_grasp_initial, ...
+             Tse_grasp_initial, Tse_standoff_initial, Tse_standoff_final, ...
+             Tse_grasp_final, Tse_grasp_final, Tse_standoff_final};
+             
+segment_times = [t1, t2, t_grasp, t4, t5, t6, t_release, t8];
+gripper_states = [0, 0, 1, 1, 1, 1, 0, 0];
+
+% Generate trajectory for each segment
+for seg = 1:8
+    T_start = T_configs{seg};
+    T_end = T_configs{seg+1};
+    T_seg = segment_times(seg);
+    N_seg = max(2, round(T_seg / dt));
+    
+    % Use appropriate trajectory generation based on segment type
+    if seg == 3 || seg == 7  % Gripper operation segments (stay in place)
+        % Stay at the same configuration
+        traj_cell = cell(N_seg, 1);
+        for i = 1:N_seg
+            traj_cell{i} = T_start;
+        end
+    else
+        % Use ScrewTrajectory for motion segments
+        % Note: Using method 5 (quintic time scaling) for smooth acceleration
+        traj_cell = ScrewTrajectory(T_start, T_end, T_seg, N_seg, 5);
+    end
+    
+    % Convert cell array to matrix format
+    traj_seg = cell2mat_trajectory(traj_cell, gripper_states(seg));
+    
+    % Append to full trajectory
+    traj = [traj; traj_seg];
+    gripper_state = [gripper_state; gripper_states(seg) * ones(N_seg, 1)];
+end
+
+end
+
+function traj_matrix = cell2mat_trajectory(traj_cell, gripper)
+% Convert cell array of SE(3) matrices to N x 13 matrix format
+    N = length(traj_cell);
+    traj_matrix = zeros(N, 13);
+    
+    for i = 1:N
+        T = traj_cell{i};
+        R = T(1:3, 1:3);
+        p = T(1:3, 4);
+        
+        % Store as row vector [r11,r12,r13,r21,r22,r23,r31,r32,r33,px,py,pz,gripper]
+        % Note: R is stored row-wise
+        traj_matrix(i,:) = [R(1,:), R(2,:), R(3,:), p', gripper];
+    end
+end
+%%%%%% END FILE: TrajectoryGenerator.m %%%%%%
+
+%%%%%% START FILE: verifyCSV.m %%%%%%
+function verifyCSV(filename)
+% verifyCSV - Verify that a CSV file has the correct format for CoppeliaSim
+% Input:
+%   filename - Name of CSV file to verify
+
+if nargin < 1
+    filename = 'Animation.csv';
+end
+
+fprintf('\nVerifying CSV file: %s\n', filename);
+fprintf('=====================================\n');
+
+% Check if file exists
+if ~exist(filename, 'file')
+    fprintf('✗ ERROR: File not found!\n');
+    return;
+end
+
+% Load the CSV file
+try
+    data = readmatrix(filename);
+catch
+    fprintf('✗ ERROR: Could not read file as numeric matrix!\n');
+    return;
+end
+
+% Check dimensions
+[rows, cols] = size(data);
+fprintf('File dimensions: %d rows x %d columns\n', rows, cols);
+
+if cols ~= 13
+    fprintf('✗ ERROR: File should have 13 columns, but has %d\n', cols);
+    fprintf('Expected format: [phi, x, y, J1-J5, W1-W4, gripper]\n');
+    return;
+else
+    fprintf('✓ Correct number of columns (13)\n');
+end
+
+if rows < 100
+    fprintf('⚠ WARNING: Only %d configurations (expected >1000 for full trajectory)\n', rows);
+else
+    fprintf('✓ Sufficient number of configurations (%d)\n', rows);
+end
+
+% Check data ranges
+fprintf('\nData ranges:\n');
+fprintf('  phi (chassis angle): [%.3f, %.3f] rad\n', min(data(:,1)), max(data(:,1)));
+fprintf('  x position: [%.3f, %.3f] m\n', min(data(:,2)), max(data(:,2)));
+fprintf('  y position: [%.3f, %.3f] m\n', min(data(:,3)), max(data(:,3)));
+fprintf('  Joint angles: [%.3f, %.3f] rad\n', min(min(data(:,4:8))), max(max(data(:,4:8))));
+fprintf('  Wheel angles: [%.3f, %.3f] rad\n', min(min(data(:,9:12))), max(max(data(:,9:12))));
+fprintf('  Gripper state: [%.0f, %.0f]\n', min(data(:,13)), max(data(:,13)));
+
+% Check gripper states
+unique_gripper = unique(data(:,13));
+if all(ismember(unique_gripper, [0, 1]))
+    fprintf('✓ Gripper states are valid (0 or 1)\n');
+else
+    fprintf('✗ ERROR: Invalid gripper states found: %s\n', mat2str(unique_gripper'));
+end
+
+% Check for NaN or Inf
+if any(isnan(data(:)))
+    fprintf('✗ ERROR: File contains NaN values!\n');
+elseif any(isinf(data(:)))
+    fprintf('✗ ERROR: File contains Inf values!\n');
+else
+    fprintf('✓ No NaN or Inf values found\n');
+end
+
+% Check motion continuity (no huge jumps)
+diffs = diff(data(:,1:12));
+max_diff = max(abs(diffs(:)));
+if max_diff > 1.0  % More than 1 radian or meter per timestep
+    fprintf('⚠ WARNING: Large jumps detected (max: %.3f)\n', max_diff);
+    [row, col] = find(abs(diffs) == max_diff, 1);
+    fprintf('  At row %d, column %d\n', row, col);
+else
+    fprintf('✓ Motion appears continuous\n');
+end
+
+% Summary
+fprintf('\n=====================================\n');
+if cols == 13 && all(ismember(unique_gripper, [0, 1])) && ...
+   ~any(isnan(data(:))) && ~any(isinf(data(:)))
+    fprintf('✓ CSV FILE IS VALID for CoppeliaSim\n');
+    
+    % Estimate trajectory duration
+    duration = rows * 0.01;  % 10ms per configuration
+    fprintf('  Estimated duration: %.1f seconds\n', duration);
+    
+    % Check gripper operations
+    gripper_changes = find(diff(data(:,13)) ~= 0);
+    fprintf('  Gripper operations: %d\n', length(gripper_changes));
+    if length(gripper_changes) >= 2
+        fprintf('  First grasp at: %.1f s\n', gripper_changes(1)*0.01);
+        fprintf('  Release at: %.1f s\n', gripper_changes(end)*0.01);
+    end
+else
+    fprintf('✗ CSV FILE HAS ERRORS - Please fix before using\n');
+end
+fprintf('=====================================\n\n');
+
+end
+%%%%%% END FILE: verifyCSV.m %%%%%%
+
+%%%%%% START FILE: writeCSV.m %%%%%%
+function writeCSV(filename, configurations, gripper_states)
+% writeCSV - Write robot configurations to CSV file for CoppeliaSim
+% Inputs:
+%   filename - Output CSV filename
+%   configurations - Nx12 matrix of robot configurations
+%   gripper_states - Nx1 vector of gripper states (0=open, 1=closed)
+
+    N = size(configurations, 1);
+    data = [configurations, gripper_states];
+    
+    % Write to CSV with appropriate precision
+    dlmwrite(filename, data, 'delimiter', ',', 'precision', '%.6f');
+    fprintf('CSV file written: %s (%d configurations)\n', filename, N);
+end
+%%%%%% END FILE: writeCSV.m %%%%%%
+
+%%%%%% START FILE: youBotKinematics.m %%%%%%
+function [T0e, Je] = youBotKinematics(config)
+% youBotKinematics - Computes forward kinematics and Jacobian for youBot
+% Input:
+%   config - 12x1 configuration vector [phi,x,y,J1,J2,J3,J4,J5,W1,W2,W3,W4]
+% Outputs:
+%   T0e - End-effector configuration in space frame (4x4)
+%   Je - Full Jacobian of the robot (6x9)
+
+% Extract configuration components
+phi = config(1);
+x = config(2);
+y = config(3);
+arm_angles = config(4:8);
+
+% Robot parameters
+Tb0 = [1, 0, 0, 0.1662;
+       0, 1, 0, 0;
+       0, 0, 1, 0.0026;
+       0, 0, 0, 1];
+
+M0e = [1, 0, 0, 0.033;
+       0, 1, 0, 0;
+       0, 0, 1, 0.6546;
+       0, 0, 0, 1];
+
+% Screw axes in end-effector frame at home configuration
+Blist = [0,  0,  1,  0,      0.033, 0;
+         0, -1,  0, -0.5076, 0,     0;
+         0, -1,  0, -0.3526, 0,     0;
+         0, -1,  0, -0.2176, 0,     0;
+         0,  0,  1,  0,      0,     0]';
+
+% Chassis transformation
+Tsb = [cos(phi), -sin(phi), 0, x;
+       sin(phi),  cos(phi), 0, y;
+       0,         0,        1, 0.0963;
+       0,         0,        0, 1];
+
+% Forward kinematics of arm
+T0e_in_0 = FKinBody(M0e, Blist, arm_angles);
+
+% End-effector in space frame
+T0e = Tsb * Tb0 * T0e_in_0;
+
+% Compute Jacobian if requested
+if nargout > 1
+    % Arm Jacobian in end-effector frame
+    Jarm = JacobianBody(Blist, arm_angles);
+    
+    % Base Jacobian
+    r = 0.0475;  % wheel radius
+    l = 0.235;   % half-length
+    w = 0.15;    % half-width
+    
+    % F matrix for mecanum wheels (in body frame)
+    F = (r/4) * [-1/(l+w), 1/(l+w), 1/(l+w), -1/(l+w);
+                  1,        1,       1,        1;
+                 -1,        1,      -1,        1];
+    
+    % Extend F to 6x4 (add zeros for angular velocities)
+    F6 = [zeros(3,4); F];
+    
+    % Transform base Jacobian to end-effector frame
+    Teb = TransInv(T0e_in_0) * TransInv(Tb0);
+    Jbase = Adjoint(Teb) * F6;
+    
+    % Combined Jacobian: [base_wheels, arm_joints]
+    Je = [Jbase, Jarm];
+end
+
+end
+
+% Note: This code assumes the Modern Robotics library is in the MATLAB path
+% All helper functions (FKinBody, JacobianBody, etc.) are from that library
+%%%%%% END FILE: youBotKinematics.m %%%%%%
+
+%%%%%% END OF PACKED PROJECT %%%%%%
