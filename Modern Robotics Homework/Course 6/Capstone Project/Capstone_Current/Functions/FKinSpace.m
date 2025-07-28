@@ -26,7 +26,7 @@ function T = FKinSpace(M, Slist, thetalist)
 
 T = M;
 % Previously the line below used size but the correct use is length.
-for i = length(thetalist): -1: 1
+for i = length(thetalist): -1:1
     T = MatrixExp6(VecTose3(Slist(:, i) * thetalist(i))) * T;
 end
 end
