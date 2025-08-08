@@ -99,13 +99,6 @@ Ki = 0.01 * eye(6);    % Integral gain (set to 0 for P control only)
 %% Simulation parameters
 max_speed = 12.3;  % Maximum speed for joints and wheels (rad/s)
 
-% Joint limits (to avoid self-collision and singularities)
-joint_limits = [-pi, pi;      % Joint 1
-                -pi, pi;      % Joint 2  
-                -pi, pi;      % Joint 3
-                -pi, pi;      % Joint 4
-                -pi, pi];     % Joint 5
-
 %% Convert trajectory to SE(3) format
 fprintf('\nRunning feedback control simulation...\n');
 
@@ -145,20 +138,9 @@ for i = 1:N_traj-1
     [V, xerr_prev] = FeedbackControl(Tse, Xd, Xd_next, Kp, Ki, dt, integral_error);
     Xerr(:,i) = xerr_prev;
     
-    % Check joint limits
-    arm_angles = config(4:8);
-    violated_joints = [];
-    for j = 1:5
-        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
-           arm_angles(j) >= joint_limits(j,2) - 0.1
-            violated_joints = [violated_joints, j];
-        end
-    end
-    
-    % Apply joint limits if necessary
-    if ~isempty(violated_joints)
-        Je = applyJointLimits(Je, violated_joints);
-    end
+    % Check and apply joint limits
+    violated_joints = checkJointLimits(config(4:8));
+    Je = applyJointLimits(Je, violated_joints);
     
     % Calculate joint speeds
     speeds = pinv(Je, 1e-3) * V;
