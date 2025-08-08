@@ -41,7 +41,9 @@ pi = m.pi
 np.set_printoptions(suppress=True)
 np.set_printoptions(precision=3)
 
-def pinv_tol(matrix,tol=0.0000001):
+def pinv_tol(matrix, tol=0.0000001):
+
+    matrix = matrix.copy()
 
     matrix[np.where(np.abs(matrix) < tol)] = 0
 
