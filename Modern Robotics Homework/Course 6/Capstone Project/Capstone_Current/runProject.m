@@ -41,19 +41,18 @@ Tsc_initial = RpToTrans(eye(3), [1; 0; 0.025]);
 Tsc_final = RpToTrans(RotZ(-pi/2), [0; -1; 0.025]);
 
 %% Grasp configuration
-% Approach angle
-a = pi/5;  % 36 degrees
+% Vertical approach using a 90-degree rotation about the y-axis
+R_y = [0, 0, 1;
+       0, 1, 0;
+      -1, 0, 0];
+Tce_grasp = RpToTrans(R_y, [0; 0; 0]);
+Tce_standoff = RpToTrans(R_y, [0; 0; 0.15]);
 
-% End-effector configuration relative to cube
-Tce_standoff = [-sin(a), 0, -cos(a), 0;
-                 0,      1,  0,       0;
-                 cos(a), 0, -sin(a), 0.1;
-                 0,      0,  0,       1];
-
-Tce_grasp = [-sin(a), 0, -cos(a), 0;
-              0,      1,  0,       0;
-              cos(a), 0, -sin(a), 0;
-              0,      0,  0,       1];
+% Precompute world-frame configurations
+Tse_standoff_initial = Tsc_initial * Tce_standoff;
+Tse_grasp_initial    = Tsc_initial * Tce_grasp;
+Tse_standoff_final   = Tsc_final * Tce_standoff;
+Tse_grasp_final      = Tsc_final * Tce_grasp;
 
 %% Reference trajectory initial configuration
 Tse_initial = [0, 0, 1, 0.5;
@@ -99,13 +98,6 @@ Ki = 0.01 * eye(6);    % Integral gain (set to 0 for P control only)
 %% Simulation parameters
 max_speed = 12.3;  % Maximum speed for joints and wheels (rad/s)
 
-% Joint limits (to avoid self-collision and singularities)
-joint_limits = [-pi, pi;      % Joint 1
-                -pi, pi;      % Joint 2  
-                -pi, pi;      % Joint 3
-                -pi, pi;      % Joint 4
-                -pi, pi];     % Joint 5
-
 %% Convert trajectory to SE(3) format
 fprintf('\nRunning feedback control simulation...\n');
 
@@ -122,6 +114,7 @@ end
 %% Run feedback control simulation
 config = config_initial;
 integral_error = zeros(6, 1);
+xerr_prev = zeros(6, 1);  % Error from previous timestep for integral term
 Animation = zeros(N_traj, 13);
 Xerr = zeros(6, N_traj-1);
 
@@ -130,34 +123,23 @@ Animation(1,:) = [config', gripper_state(1)];
 
 % Main control loop
 for i = 1:N_traj-1
+    % Update integral error with error from previous step
+    integral_error = integral_error + xerr_prev * dt;
+
     % Current and next reference configurations
     Xd = Td(:,:,i);
     Xd_next = Td(:,:,i+1);
-    
+
     % Compute current end-effector configuration
     [Tse, Je] = youBotKinematics(config);
-    
+
     % Feedback control
-    [V, xerr] = FeedbackControl(Tse, Xd, Xd_next, Kp, Ki, dt, integral_error);
-    Xerr(:,i) = xerr;
+    [V, xerr_prev] = FeedbackControl(Tse, Xd, Xd_next, Kp, Ki, dt, integral_error);
+    Xerr(:,i) = xerr_prev;
     
-    % Update integral error
-    integral_error = integral_error + xerr * dt;
-    
-    % Check joint limits
-    arm_angles = config(4:8);
-    violated_joints = [];
-    for j = 1:5
-        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
-           arm_angles(j) >= joint_limits(j,2) - 0.1
-            violated_joints = [violated_joints, j];
-        end
-    end
-    
-    % Apply joint limits if necessary
-    if ~isempty(violated_joints)
-        Je = applyJointLimits(Je, violated_joints);
-    end
+    % Check and apply joint limits
+    violated_joints = checkJointLimits(config(4:8));
+    Je = applyJointLimits(Je, violated_joints);
     
     % Calculate joint speeds
     speeds = pinv(Je, 1e-3) * V;

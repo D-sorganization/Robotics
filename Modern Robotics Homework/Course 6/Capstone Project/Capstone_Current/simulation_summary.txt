@@ -1,0 +1,22 @@
+Mobile Manipulation Capstone - Simulation Summary
+================================================
+
+Controller Parameters:
+  Proportional Gain (Kp): 1.5
+  Integral Gain (Ki): 0.0
+
+Simulation Parameters:
+  Time Step: 0.010 s
+  Max Speed: 12.3 rad/s
+  Total Time: 15.0 s
+
+Performance Metrics:
+  Final Error Norm: 0.914038
+  Maximum Error Norm: 1.003319
+  Convergence Time: Did not converge
+
+Output Files:
+  - Traj.csv: Reference trajectory
+  - Animation.csv: Robot motion for CoppeliaSim
+  - Xerr.mat: Error data
+  - error_plot.pdf/png: Error visualization

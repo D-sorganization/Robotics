@@ -25,6 +25,6 @@ function T = FKinBody(M, Blist, thetalist)
 T = M;
 % The line below was changed to use length. It previously used size.
 for i = 1:length(thetalist)
-    T = T * MatrixExp6(VecTose3(Blist(:, i) * thetalist(i)));
+    T = T * MatrixExp6(VecTose3(Blist(:,i) * thetalist(i)));
 end
 end

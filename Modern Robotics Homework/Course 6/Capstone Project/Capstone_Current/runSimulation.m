@@ -40,19 +40,18 @@ else
 end
 
 %% Define grasp configurations
-% Grasp angle (similar to reference implementation)
-a = pi/6;  % 30 degrees approach angle
+% Vertical approach using a 90-degree rotation about the y-axis
+R_y = [0, 0, 1;
+       0, 1, 0;
+      -1, 0, 0];
+Tce_grasp = RpToTrans(R_y, [0; 0; 0]);
+Tce_standoff = RpToTrans(R_y, [0; 0; 0.15]);
 
-% End-effector configuration relative to cube
-Tce_grasp = [-sin(a), 0, -cos(a), 0;
-              0,      1,  0,       0;
-              cos(a), 0, -sin(a), 0;
-              0,      0,  0,       1];
-
-Tce_standoff = [-sin(a), 0, -cos(a), 0;
-                 0,      1,  0,       0;
-                 cos(a), 0, -sin(a), 0.1;
-                 0,      0,  0,       1];
+% Precompute world-frame configurations
+Tse_standoff_initial = Tsc_initial * Tce_standoff;
+Tse_grasp_initial    = Tsc_initial * Tce_grasp;
+Tse_standoff_final   = Tsc_final * Tce_standoff;
+Tse_grasp_final      = Tsc_final * Tce_grasp;
 
 %% Define reference trajectory initial configuration
 Tse_initial = [0, 0, 1, 0.5;
@@ -113,13 +112,6 @@ dt = 0.01;              % Timestep (10 ms)
 max_speed = 12.3;       % Maximum joint/wheel speed (rad/s)
 k = 1;                  % Trajectory points per 0.01s
 
-% Joint limits to avoid singularities and self-collision
-joint_limits = [-pi, pi;      % Joint 1
-                -pi, pi;      % Joint 2  
-                -pi, pi;      % Joint 3
-                -pi, pi;      % Joint 4
-                -pi, pi];     % Joint 5
-
 %% Generate reference trajectory
 fprintf('Generating reference trajectory...\n');
 [traj_ref, gripper_ref] = TrajectoryGenerator(Tse_initial, Tsc_initial, ...
@@ -143,6 +135,7 @@ end
 %% Initialize simulation
 config = config_initial;
 integral_error = zeros(6, 1);
+Xerr_prev = zeros(6, 1);  % Error from previous timestep for integral term
 config_log = zeros(N_traj, 13);
 Xerr_log = zeros(6, N_traj-1);
 
@@ -152,33 +145,23 @@ config_log(1,:) = [config', gripper_ref(1)];
 %% Main simulation loop
 fprintf('Running feedback control simulation...\n');
 for i = 1:N_traj-1
+    % Update integral error with previous error
+    integral_error = integral_error + Xerr_prev * dt;
+
     % Current and next reference configurations
     Xd = traj_SE3(:,:,i);
     Xd_next = traj_SE3(:,:,i+1);
     gripper_state = gripper_ref(i);
-    
+
     % Compute current end-effector configuration
     [X, Je] = youBotKinematics(config);
-    
-    % Feedback control
-    [V, Xerr] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
-    
-    % Update integral error
-    integral_error = integral_error + Xerr * dt;
-    
-    % Check joint limits
-    arm_angles = config(4:8);
-    violated_joints = [];
-    for j = 1:5
-        if arm_angles(j) <= joint_limits(j,1) + 0.1 || ...
-           arm_angles(j) >= joint_limits(j,2) - 0.1
-            violated_joints = [violated_joints, j];
-        end
-    end
-    
-    if ~isempty(violated_joints)
-        Je = applyJointLimits(Je, violated_joints);
-    end
+
+    % Feedback control (use integral_error accumulated up to previous step)
+    [V, Xerr_prev] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
+
+    % Check and apply conservative joint limits
+    violated_joints = checkJointLimits(config(4:8));
+    Je = applyJointLimits(Je, violated_joints);
     
     % Calculate joint speeds using pseudoinverse
     speeds = pinv(Je, 1e-3) * V;
@@ -192,11 +175,11 @@ for i = 1:N_traj-1
     
     % Log data
     config_log(i+1,:) = [config', gripper_state];
-    Xerr_log(:,i) = Xerr;
+    Xerr_log(:,i) = Xerr_prev;
     
     % Progress indicator
     if mod(i, 500) == 0
-        fprintf('  Progress: %.1f%%\n', 100*i/(N_traj-1));
+        fprintf('  Progress: %.1f%%%%\n', 100*i/(N_traj-1));
     end
 end
 
