@@ -7,6 +7,6 @@ Maximum Speed Limit: 12.3 rad/s
 Timestep: 0.010 s
 
 
-Final Error Norm: 1.287538
-Maximum Error Norm: 1.300191
-Convergence Time (error < 0.010): 4.84 s
+Final Error Norm: 0.937949
+Maximum Error Norm: 1.057862
+Did not converge to threshold 0.010
