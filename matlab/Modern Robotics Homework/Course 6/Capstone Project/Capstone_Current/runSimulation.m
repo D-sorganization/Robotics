@@ -40,12 +40,12 @@ else
 end
 
 %% Define grasp configurations
-% Approach frame tilted about y by 36 degrees to match reference project
-a = pi/5;  % [rad] tilt angle from functional project specification
-% Rotation matrix for end-effector approach relative to cube frame
-R_y = [-sin(a), 0,  cos(a);
-       0,       1,  0;
-      -cos(a), 0, -sin(a)];
+% Approach frame rotated about y by 36 degrees (pi/5)
+a = pi/5;  % [rad] rotation angle about y
+% Rotation matrix for a right-handed rotation about the y-axis by angle a
+R_y = [cos(a), 0,  sin(a);
+       0,      1,  0;
+      -sin(a), 0,  cos(a)];
 
 % Grasp and standoff expressed relative to the cube frame
 Tce_grasp = RpToTrans(R_y, [0; 0; 0]);
