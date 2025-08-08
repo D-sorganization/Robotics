@@ -65,7 +65,7 @@ def test_joint_limits(position_state, ignore = True):
             test_joints[offset_arm + 2] = False
 
         if theta_arm[3] < -0.05:
-            test_joints[offset_arm + 2] = False
+            test_joints[offset_arm + 3] = False
 
     return test_joints
 
