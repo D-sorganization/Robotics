@@ -143,6 +143,7 @@ end
 %% Initialize simulation
 config = config_initial;
 integral_error = zeros(6, 1);
+Xerr_prev = zeros(6, 1);  % Error from previous timestep for integral term
 config_log = zeros(N_traj, 13);
 Xerr_log = zeros(6, N_traj-1);
 
@@ -152,20 +153,20 @@ config_log(1,:) = [config', gripper_ref(1)];
 %% Main simulation loop
 fprintf('Running feedback control simulation...\n');
 for i = 1:N_traj-1
+    % Update integral error with previous error
+    integral_error = integral_error + Xerr_prev * dt;
+
     % Current and next reference configurations
     Xd = traj_SE3(:,:,i);
     Xd_next = traj_SE3(:,:,i+1);
     gripper_state = gripper_ref(i);
-    
+
     % Compute current end-effector configuration
     [X, Je] = youBotKinematics(config);
-    
+
     % Feedback control
-    [V, Xerr] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
-    
-    % Update integral error
-    integral_error = integral_error + Xerr * dt;
-    
+    [V, Xerr_prev] = FeedbackControl(X, Xd, Xd_next, Kp, Ki, dt, integral_error);
+
     % Check joint limits
     arm_angles = config(4:8);
     violated_joints = [];
@@ -192,7 +193,7 @@ for i = 1:N_traj-1
     
     % Log data
     config_log(i+1,:) = [config', gripper_state];
-    Xerr_log(:,i) = Xerr;
+    Xerr_log(:,i) = Xerr_prev;
     
     % Progress indicator
     if mod(i, 500) == 0
