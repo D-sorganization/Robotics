@@ -40,19 +40,18 @@ else
 end
 
 %% Define grasp configurations
-% Grasp angle (similar to reference implementation)
-a = pi/6;  % 30 degrees approach angle
+% Vertical approach using a 90-degree rotation about the y-axis
+R_y = [0, 0, 1;
+       0, 1, 0;
+      -1, 0, 0];
+Tce_grasp = RpToTrans(R_y, [0; 0; 0]);
+Tce_standoff = RpToTrans(R_y, [0; 0; 0.15]);
 
-% End-effector configuration relative to cube
-Tce_grasp = [-sin(a), 0, -cos(a), 0;
-              0,      1,  0,       0;
-              cos(a), 0, -sin(a), 0;
-              0,      0,  0,       1];
-
-Tce_standoff = [-sin(a), 0, -cos(a), 0;
-                 0,      1,  0,       0;
-                 cos(a), 0, -sin(a), 0.1;
-                 0,      0,  0,       1];
+% Precompute world-frame configurations
+Tse_standoff_initial = Tsc_initial * Tce_standoff;
+Tse_grasp_initial    = Tsc_initial * Tce_grasp;
+Tse_standoff_final   = Tsc_final * Tce_standoff;
+Tse_grasp_final      = Tsc_final * Tce_grasp;
 
 %% Define reference trajectory initial configuration
 Tse_initial = [0, 0, 1, 0.5;
