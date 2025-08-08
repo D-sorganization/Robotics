@@ -143,35 +143,30 @@ if __name__ == '__main__':
     Ki_error = 0
     delta_t = 0.01/k
 
-    for i,traj_section in tqdm(enumerate(traj_list_complete),position=0):
-
-        ref_traj = traj_list_complete[i]
+    data_rows = []
+    for i in tqdm(range(len(traj_list_complete)-1), position=0):
         gripper_state = gripper_state_complete[i]
-        data_rows = []
+        data_row = ns.create_data_row(position_state,gripper_state)
+        data_rows.append(data_row)
 
-        for i in tqdm(range(len(ref_traj)-2),position=0):
+        test_joints = fc.test_joint_limits(position_state, ignore = True)
 
-            data_row = ns.create_data_row(position_state,gripper_state)
-            data_rows.append(data_row)
+        Xd = traj_list_complete[i]
+        Xdnext = traj_list_complete[i+1]
 
-            test_joints = fc.test_joint_limits(position_state, ignore = True)
+        u_theta, Xerr, Ki_error, J_e, V_t, Vd = fc.feedback_control(position_state,Xd,Xdnext,K, Ki, Ki_error, delta_t, test_joints)
 
-            Xd = ref_traj[i]
-            Xdnext = ref_traj[i+1]
+        Xerr_list = np.concatenate((Xerr_list,[Xerr]), axis = 0)
 
-            u_theta, Xerr, Ki_error, J_e, V_t, Vd = fc.feedback_control(position_state,Xd,Xdnext,K, Ki, Ki_error, delta_t, test_joints)
+        theta_dot_wheels = np.array(u_theta[0:4])
+        theta_dot_arm = np.array(u_theta[4:])
 
-            Xerr_list = np.concatenate((Xerr_list,[Xerr]), axis = 0)
+        velocity_state = (theta_dot_arm,theta_dot_wheels)
 
-            theta_dot_wheels = np.array(u_theta[0:4])
-            theta_dot_arm = np.array(u_theta[4:])
+        position_state = ns.next_state(position_state, velocity_state, delta_t, speed_limit = joint_speed_limit)
 
-            velocity_state = (theta_dot_arm,theta_dot_wheels)
-
-            position_state = ns.next_state(position_state, velocity_state, delta_t, speed_limit = joint_speed_limit)
-
-        # Write data to a file
-        ns.write_row_list(data_rows,fn = 'result.csv')
+    # Write data to a file
+    ns.write_row_list(data_rows,fn = 'result.csv')
 
     print("Writing Error Plot")
     print("K: " + str(K[0,0]) + " Ki: " + str(Ki))
