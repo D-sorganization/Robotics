@@ -50,6 +50,9 @@ def create_data_row(config_matrix_T,gripper_state):
     rotation = config_matrix_T[:-1,0:-1].flatten()
     position = config_matrix_T[:-1,-1:].flatten()
 
+    # ensure gripper state is an array for concatenation
+    gripper_state = np.array([gripper_state])
+
     # unpack position state to one list
     data_row = np.concatenate((rotation,position,gripper_state),axis = None)
     data_row = data_row.tolist()
@@ -73,6 +76,15 @@ def write_csv_row(config_matrix_T,gripper_state):
 def write_trajectory_to_csv(traj_list,gripper_state):
     for matrix in traj_list:
         write_csv_row(matrix,gripper_state)
+
+def export_trajectory(traj_list, gripper_states, filename='trajectory_gen_test.csv'):
+    """Export a full trajectory to a CSV file in 13-column format."""
+    filepath = os.path.dirname(os.path.abspath(__file__))
+    fullpath = os.path.join(filepath, filename)
+    with open(fullpath, 'w', newline='') as f:
+        csvwriter = csv.writer(f)
+        for T, g in zip(traj_list, gripper_states):
+            csvwriter.writerow(create_data_row(T, g))
 
 def gripper_open_close_trajectory(config_matrix, k):
 
@@ -127,8 +139,8 @@ def setup(Tsc_init, Tsc_final, Tse_init, max_velocity, k):
     return Tse_init_standoff, Tse_init_grasp ,Tse_final_standoff ,Tse_final_grasp
 
 def gen_full_trajectory(Tsc_init, Tsc_final, Tse_init, k, max_velocity, write_test_traj = False):
-    traj_list_complete = []
-    gripper_state_complete = []
+    traj_segments = []
+    gripper_segments = []
 
     Tse_init_standoff, Tse_init_grasp ,Tse_final_standoff ,Tse_final_grasp = setup(Tsc_init, Tsc_final, Tse_init, max_velocity, k)
 
@@ -136,57 +148,49 @@ def gen_full_trajectory(Tsc_init, Tsc_final, Tse_init, k, max_velocity, write_te
     T_start = Tse_init
     T_end = Tse_init_standoff
     traj_list = gentrajectory(T_start,T_end,max_velocity,k)
-    traj_list_complete.append(traj_list)
-    gripper_state = 0
-    gripper_state_complete.append(gripper_state)
-    if write_test_traj == True:
-        write_trajectory_to_csv(traj_list,gripper_state)
+    traj_segments.append(traj_list)
+    gripper_segments.append(0)
     #====================================================================
     # Move to grasp configuration
     T_start = T_end
     T_end = Tse_init_grasp
     traj_list = gentrajectory(T_start,T_end,max_velocity,k)
-    traj_list_complete.append(traj_list)
-    gripper_state = 0
-    gripper_state_complete.append(gripper_state)
-    if write_test_traj == True:
-        write_trajectory_to_csv(traj_list,gripper_state)
+    traj_segments.append(traj_list)
+    gripper_segments.append(0)
     #====================================================================
     # Close gripper
     traj_list = gripper_open_close_trajectory(T_end, k)
-    traj_list_complete.append(traj_list)
-    gripper_state = 1
-    gripper_state_complete.append(gripper_state)
-    if write_test_traj == True:
-        write_trajectory_to_csv(traj_list,gripper_state)
-    #====================================================================
-    # # Move from current configuration to final standoff configuration
-    T_start = T_end
-    T_end = Tse_final_standoff
-    traj_list = gentrajectory(T_start,T_end,max_velocity,k)
-    traj_list_complete.append(traj_list)
-    gripper_state = 1
-    gripper_state_complete.append(gripper_state)
-    if write_test_traj == True:
-        write_trajectory_to_csv(traj_list,gripper_state)
+    traj_segments.append(traj_list)
+    gripper_segments.append(1)
     #====================================================================
     # Move from current configuration to final standoff configuration
     T_start = T_end
+    T_end = Tse_final_standoff
+    traj_list = gentrajectory(T_start,T_end,max_velocity,k)
+    traj_segments.append(traj_list)
+    gripper_segments.append(1)
+    #====================================================================
+    # Move from current configuration to final grasp configuration
+    T_start = T_end
     T_end = Tse_final_grasp
     traj_list = gentrajectory(T_start,T_end,max_velocity,k)
-    traj_list_complete.append(traj_list)
-    gripper_state = 1
-    gripper_state_complete.append(gripper_state)
-    if write_test_traj == True:
-        write_trajectory_to_csv(traj_list,gripper_state)
+    traj_segments.append(traj_list)
+    gripper_segments.append(1)
     #====================================================================
     # Open gripper
     traj_list = gripper_open_close_trajectory(T_end, k)
-    traj_list_complete.append(traj_list)
-    gripper_state = 0
-    gripper_state_complete.append(gripper_state)
-    if write_test_traj == True:
-        write_trajectory_to_csv(traj_list,gripper_state)
+    traj_segments.append(traj_list)
+    gripper_segments.append(0)
     #====================================================================
+
+    # Concatenate all segments into single lists
+    traj_list_complete = []
+    gripper_state_complete = []
+    for seg, g in zip(traj_segments, gripper_segments):
+        traj_list_complete.extend(seg)
+        gripper_state_complete.extend([g]*len(seg))
+
+    if write_test_traj:
+        export_trajectory(traj_list_complete, gripper_state_complete)
 
     return traj_list_complete, gripper_state_complete
