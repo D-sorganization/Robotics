@@ -1,10 +1,10 @@
 target-version = "py311"
 extend-exclude = [
+  "matlab/",
   "archive/",
   "data/",
   "data_processor/data/",
   "project_packer/",
   "Golf_GUI/Simscape Multibody Data Plotters/Python Version/",
-  "Matlab RRT Path Planner/*python*/",
   "Modern Robotics Homework/",
 ]

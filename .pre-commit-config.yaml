@@ -3,24 +3,24 @@ repos:
   rev: 24.4.2
   hooks:
     - id: black
-      exclude: '^(archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
+      exclude: '^(matlab/|archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
 - repo: https://github.com/PyCQA/isort
   rev: 5.13.2
   hooks:
     - id: isort
-      exclude: '^(archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
+      exclude: '^(matlab/|archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.5.0
   hooks:
     - id: ruff
       args: [--fix]
-      exclude: '^(archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
+      exclude: '^(matlab/|archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v1.10.0
   hooks:
     - id: mypy
       additional_dependencies: ["types-requests"]
-      exclude: '^(archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
+      exclude: '^(matlab/|archive/|data/|data_processor/data/|project_packer/|Golf_GUI/Simscape Multibody Data Plotters/Python Version/|Matlab RRT Path Planner/.*python.*|Modern Robotics Homework/).*'
 - repo: https://github.com/kynan/nbstripout
   rev: 0.7.1
   hooks: [{id: nbstripout}]
