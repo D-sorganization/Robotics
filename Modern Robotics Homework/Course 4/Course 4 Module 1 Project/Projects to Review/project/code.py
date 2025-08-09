@@ -1,8 +1,8 @@
 import csv
-import math
 import heapq
+import math
 import sys
-import os
+
 
 # Reads nodes from the file nodes.csv.
 # Lines starting with '#' are considered comments and are ignored.
@@ -10,7 +10,7 @@ import os
 def read_nodes(filename):
     nodes = {}
     try:
-        with open(filename, newline='') as csvfile:
+        with open(filename, newline="") as csvfile:
             # Отфильтровываем комментарии
             lines = [line for line in csvfile if not line.strip().startswith("#")]
             reader = csv.reader(lines)
@@ -27,13 +27,14 @@ def read_nodes(filename):
         sys.exit(1)
     return nodes
 
+
 # Reads edges from the file edges.csv.
 # Lines starting with '#' are considered comments and are ignored.
 # Returns a list of tuples: (id1, id2, cost)
 def read_edges(filename):
     edges = []
     try:
-        with open(filename, newline='') as csvfile:
+        with open(filename, newline="") as csvfile:
             # Отфильтровываем комментарии
             lines = [line for line in csvfile if not line.strip().startswith("#")]
             reader = csv.reader(lines)
@@ -49,19 +50,22 @@ def read_edges(filename):
         sys.exit(1)
     return edges
 
+
 # Reads obstacles from obstacles.csv.
 # Lines starting with '#' are considered comments and are ignored.
 # Returns a list of tuples: (center_x, center_y, radius) where radius = diameter/2
 def read_obstacles(filename):
     obstacles = []
     try:
-        with open(filename, newline='') as csvfile:
+        with open(filename, newline="") as csvfile:
             # Отфильтровываем комментарии
             lines = [line for line in csvfile if not line.strip().startswith("#")]
             reader = csv.reader(lines)
             for row in reader:
                 if len(row) != 3:
-                    raise ValueError(f"Invalid number of columns in obstacles.csv: {row}")
+                    raise ValueError(
+                        f"Invalid number of columns in obstacles.csv: {row}"
+                    )
                 cx = float(row[0])
                 cy = float(row[1])
                 diameter = float(row[2])
@@ -72,12 +76,14 @@ def read_obstacles(filename):
         sys.exit(1)
     return obstacles
 
+
 # Checks if a point (x, y) is inside any obstacle.
 def point_in_obstacle(x, y, obstacles):
     for cx, cy, radius in obstacles:
         if math.hypot(x - cx, y - cy) < radius:
             return True
     return False
+
 
 # Checks if the line segment between p1 and p2 intersects a circle (center, radius).
 def segment_intersects_circle(p1, p2, center, radius):
@@ -104,15 +110,19 @@ def segment_intersects_circle(p1, p2, center, radius):
     distance = math.hypot(nearest_x - cx, nearest_y - cy)
     return distance < radius
 
+
 # Checks if an edge (between two nodes) collides with any obstacle.
 def edge_collides(p1, p2, obstacles):
     for cx, cy, radius in obstacles:
         # If one of the endpoints is already inside the obstacle, the edge is considered colliding.
-        if point_in_obstacle(p1[0], p1[1], [(cx, cy, radius)]) or point_in_obstacle(p2[0], p2[1], [(cx, cy, radius)]):
+        if point_in_obstacle(p1[0], p1[1], [(cx, cy, radius)]) or point_in_obstacle(
+            p2[0], p2[1], [(cx, cy, radius)]
+        ):
             return True
         if segment_intersects_circle(p1, p2, (cx, cy), radius):
             return True
     return False
+
 
 # Builds the graph considering filtered nodes and obstacle collisions on edges.
 # Graph is represented as a dictionary: node_id -> list of tuples (neighbor_id, cost)
@@ -129,6 +139,7 @@ def build_graph(nodes, edges, obstacles):
                 graph[id1].append((id2, cost))
                 graph[id2].append((id1, cost))
     return graph
+
 
 # Implementation of the A* algorithm.
 def astar(graph, nodes, start, goal):
@@ -149,7 +160,7 @@ def astar(graph, nodes, start, goal):
     # f = g + heuristic (heuristic is taken from nodes)
     heuristic_start = nodes[start][2]
     heapq.heappush(open_list, (heuristic_start, 0, start))
-    
+
     # Closed set to track nodes already evaluated.
     closed = set()
 
@@ -164,7 +175,7 @@ def astar(graph, nodes, start, goal):
                 current = came_from[current]
             path.append(start)
             return list(reversed(path))
-        
+
         closed.add(current)
 
         for neighbor, edge_cost in graph[current]:
@@ -180,6 +191,7 @@ def astar(graph, nodes, start, goal):
                 f = tentative_g + heuristic
                 heapq.heappush(open_list, (f, tentative_g, neighbor))
     return None
+
 
 def main():
     # File names are defined.
@@ -200,7 +212,7 @@ def main():
             valid_nodes[node_id] = (x, y, heuristic)
         else:
             print(f"Node {node_id} is excluded because it is inside an obstacle.")
-    
+
     # According to the assignment, the start node is 1 and the goal node is the one with the highest ID.
     start = 1
     goal = max(nodes.keys())
@@ -237,5 +249,6 @@ def main():
         print(f"Error writing file {output_file}: {e}")
         sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

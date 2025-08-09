@@ -1,121 +1,40 @@
-# MATLAB files
-*.asv
-*.mat
-*.fig
-*.mex*
-*.p
-*.prj
-slprj/
-codegen/
-*.slxc
-
-# Video files (often large)
-*.mp4
-*.avi
-*.mov
-*.wmv
-*.flv
-
-# Image files (if you want to exclude them)
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.bmp
-*.tiff
-
-# Archive files
-*.zip
-*.rar
-*.7z
-*.tar
-*.gz
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.swp
-*~
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.sublime-*
-
-# Log files
-*.log
-log.txt
-
-# Data files (uncomment if you want to exclude CSV files)
-# *.csv
-
-# Compiled files
-*.exe
-*.dll
-*.so
-*.dylib
-
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
 env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+*.egg-info/
+.ipynb_checkpoints/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# MATLAB/Simulink
+*.asv
+*.m~
+slprj/
+*sldd
+*.slxc
+*.autosave
+*.mex* 
 
-# Rope project settings
-.ropeproject
+# IDE
+.cursor/
+*.cursor-chat
+.vscode/
+.idea/
 
-# mkdocs documentation
-/site
+# OS
+.DS_Store
+Thumbs.db
 
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json 
+# Data & Outputs
+data/raw/
+output/**/temp/
+logs/
+*.log
+
+# Binary models/data via LFS
+*.slx
+*.mdl
+*.mat
+*.h5
+*.zip

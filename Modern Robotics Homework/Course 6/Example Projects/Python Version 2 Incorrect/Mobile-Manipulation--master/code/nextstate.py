@@ -1,6 +1,7 @@
 import modern_robotics as mr
 import numpy as np
 
+
 def NextState(curr_config,speed,time_step,speed_max):
 	""" Compute the next time robot configuration
 
