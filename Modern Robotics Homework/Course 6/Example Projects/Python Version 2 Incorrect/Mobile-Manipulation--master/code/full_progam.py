@@ -1,7 +1,8 @@
+import logging
+
+import matplotlib.pyplot as plt
 import modern_robotics as mr
 import numpy as np
-import matplotlib.pyplot as plt
-import logging
 
 # initilize log file
 LOG_FILENAME = 'newtask.log'

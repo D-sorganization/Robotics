@@ -3,13 +3,14 @@ import heapq
 import math
 from collections import defaultdict
 
+
 def read_nodes(filename):
     nodes = {}
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         for line in f:
-            if line.startswith('#'):
+            if line.startswith("#"):
                 continue
-            parts = line.strip().split(',')
+            parts = line.strip().split(",")
             if len(parts) < 3:
                 continue
             node_id = int(parts[0])
@@ -18,13 +19,14 @@ def read_nodes(filename):
             nodes[node_id] = (x, y)
     return nodes
 
+
 def read_edges(filename):
     graph = defaultdict(list)
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         for line in f:
-            if line.startswith('#'):
+            if line.startswith("#"):
                 continue
-            parts = line.strip().split(',')
+            parts = line.strip().split(",")
             if len(parts) < 3:
                 continue
             u = int(parts[0])
@@ -34,19 +36,21 @@ def read_edges(filename):
             graph[v].append((u, cost))  # undirected graph
     return graph
 
+
 def heuristic(a, b):
     # Euclidean distance
     return math.hypot(a[0] - b[0], a[1] - b[1])
+
 
 def astar(start, goal, nodes, graph):
     open_set = []
     heapq.heappush(open_set, (0, start))
 
     came_from = {}
-    g_score = {node: float('inf') for node in nodes}
+    g_score = {node: float("inf") for node in nodes}
     g_score[start] = 0
 
-    f_score = {node: float('inf') for node in nodes}
+    f_score = {node: float("inf") for node in nodes}
     f_score[start] = heuristic(nodes[start], nodes[goal])
 
     while open_set:
@@ -60,10 +64,13 @@ def astar(start, goal, nodes, graph):
             if tentative_g < g_score[neighbor]:
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
-                f_score[neighbor] = tentative_g + heuristic(nodes[neighbor], nodes[goal])
+                f_score[neighbor] = tentative_g + heuristic(
+                    nodes[neighbor], nodes[goal]
+                )
                 heapq.heappush(open_set, (f_score[neighbor], neighbor))
 
     return [start]  # No path found
+
 
 def reconstruct_path(came_from, current):
     path = [current]
@@ -72,15 +79,17 @@ def reconstruct_path(came_from, current):
         path.append(current)
     return path[::-1]
 
+
 def write_path(filename, path):
-    with open(filename, 'w', newline='') as f:
+    with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(path)
 
+
 def main():
-    nodes_file = 'nodes.csv'
-    edges_file = 'edges.csv'
-    path_file = 'path.csv'
+    nodes_file = "nodes.csv"
+    edges_file = "edges.csv"
+    path_file = "path.csv"
 
     nodes = read_nodes(nodes_file)
     graph = read_edges(edges_file)
@@ -94,5 +103,6 @@ def main():
     print("Path found:" if len(path) > 1 else "No path found.")
     print(path)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

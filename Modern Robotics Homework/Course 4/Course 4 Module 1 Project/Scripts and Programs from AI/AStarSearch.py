@@ -1,6 +1,7 @@
 import csv
-import math
 import heapq
+import math
+
 
 def read_nodes(filename):
     """
@@ -8,11 +9,11 @@ def read_nodes(filename):
     Expects each non-commented line to have: id,x,y
     """
     nodes = {}
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         reader = csv.reader(f)
         for row in reader:
             # Skip any comment lines (starting with "#")
-            if row and row[0].startswith('#'):
+            if row and row[0].startswith("#"):
                 continue
             if len(row) < 3:
                 continue
@@ -22,6 +23,7 @@ def read_nodes(filename):
             nodes[node_id] = (x, y)
     return nodes
 
+
 def read_edges(filename):
     """
     Reads edges.csv and constructs the graph as an adjacency dictionary.
@@ -29,10 +31,10 @@ def read_edges(filename):
     Since the graph is undirected, add edges both ways.
     """
     graph = {}
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         reader = csv.reader(f)
         for row in reader:
-            if row and row[0].startswith('#'):
+            if row and row[0].startswith("#"):
                 continue
             if len(row) < 3:
                 continue
@@ -47,13 +49,15 @@ def read_edges(filename):
             graph[node2].append((node1, cost))
     return graph
 
+
 def heuristic(node, goal, nodes):
     """
     Euclidean distance between the current node and the goal.
     """
     (x1, y1) = nodes[node]
     (x2, y2) = nodes[goal]
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
 
 def astar_search(nodes, graph, start, goal):
     """
@@ -63,16 +67,16 @@ def astar_search(nodes, graph, start, goal):
     # Priority queue: each item is (f_score, node)
     open_set = []
     heapq.heappush(open_set, (heuristic(start, goal, nodes), start))
-    
+
     came_from = {}  # Map each node to its predecessor in optimal path
-    g_score = {node: float('inf') for node in nodes}
+    g_score = {node: float("inf") for node in nodes}
     g_score[start] = 0
 
     closed_set = set()
 
     while open_set:
         current_f, current = heapq.heappop(open_set)
-        
+
         # If we reached the goal, reconstruct the path
         if current == goal:
             return reconstruct_path(came_from, current)
@@ -83,13 +87,14 @@ def astar_search(nodes, graph, start, goal):
             if neighbor in closed_set:
                 continue
             tentative_g = g_score[current] + cost
-            
+
             if tentative_g < g_score[neighbor]:
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
                 f_score = tentative_g + heuristic(neighbor, goal, nodes)
                 heapq.heappush(open_set, (f_score, neighbor))
     return None
+
 
 def reconstruct_path(came_from, current):
     """
@@ -102,21 +107,23 @@ def reconstruct_path(came_from, current):
     path.reverse()
     return path
 
+
 def write_path(path, filename):
     """
     Writes the solution path to a CSV file. If no path is found, writes just "1".
     """
-    with open(filename, 'w', newline='') as f:
+    with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
         if path is None:
             writer.writerow([1])
         else:
             writer.writerow(path)
 
+
 if __name__ == "__main__":
     # Read the input files
-    nodes = read_nodes('nodes.csv')
-    graph = read_edges('edges.csv')
+    nodes = read_nodes("nodes.csv")
+    graph = read_edges("edges.csv")
 
     # Assumption: Start is node 1, and goal is the node with the highest number.
     start = 1
@@ -126,4 +133,4 @@ if __name__ == "__main__":
     path = astar_search(nodes, graph, start, goal)
 
     # Write the output path into path.csv
-    write_path(path, 'path.csv')
+    write_path(path, "path.csv")

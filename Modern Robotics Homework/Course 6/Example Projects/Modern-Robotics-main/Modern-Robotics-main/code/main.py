@@ -1,40 +1,51 @@
-import numpy as np
-import modern_robotics as mr
 import csv
+
 import matplotlib.pyplot as plt
+import modern_robotics as mr
+import numpy as np
+
 np.set_printoptions(precision=4, suppress=True, linewidth=np.inf)
+
 
 # Using a class in order to create easy unit tests for test_main.py
 class RobotController:
 
     def __init__(self, filename, length=0.235, width=0.15, radius=0.0475):
         # Initialize the controller with the file names and other properties
-        self.filename  = filename
-        self.csvfile   = open(filename, "w")
+        self.filename = filename
+        self.csvfile = open(filename, "w")
         self.csvwriter = csv.writer(self.csvfile)
 
         # Robot Dimensions for Odometry
         self.length = length
-        self.width  = width
+        self.width = width
         self.radius = radius
 
         # Step counter for trajectories
         self.step = 1
 
-
     ###################################################################################################################
-    #================================================== Milestone 1 ==================================================#
+    # ================================================== Milestone 1 ==================================================#
     ###################################################################################################################
 
     def get_F_matrix(self):
         # Gets the F matrix to determine the twist based on a wheel configuration
         temp = 1 / (self.length + self.width)
-        F = (self.radius / 4) * np.array([[-1 * temp, temp, temp, -1 * temp],
-                                          [1, 1, 1, 1],
-                                          [-1, 1, -1, 1]])
+        F = (self.radius / 4) * np.array(
+            [[-1 * temp, temp, temp, -1 * temp], [1, 1, 1, 1], [-1, 1, -1, 1]]
+        )
         return F
 
-    def next_state(self, current_config, control_speeds, timestep, max_arm_omega, max_wheel_omega, gripper_state, save=True):
+    def next_state(
+        self,
+        current_config,
+        control_speeds,
+        timestep,
+        max_arm_omega,
+        max_wheel_omega,
+        gripper_state,
+        save=True,
+    ):
         """
         Calculates the next state of the robot using odometry and a simple Euler step
 
@@ -89,30 +100,35 @@ class RobotController:
             d_q_b = [0, V_b[1], V_b[2]]
         else:
             d_phi_b = V_b[0]
-            d_x_b   = (V_b[1] * np.sin(V_b[0]) + V_b[2] * (np.cos(V_b[0]) - 1)) / V_b[0]
-            d_y_b   = (V_b[2] * np.sin(V_b[0]) + V_b[1] * (1 - np.cos(V_b[0]))) / V_b[0]
+            d_x_b = (V_b[1] * np.sin(V_b[0]) + V_b[2] * (np.cos(V_b[0]) - 1)) / V_b[0]
+            d_y_b = (V_b[2] * np.sin(V_b[0]) + V_b[1] * (1 - np.cos(V_b[0]))) / V_b[0]
             d_q_b = [d_phi_b, d_x_b, d_y_b]
 
         # The T_sb matrix to determine the change in q using d_q_b
-        T_sb = np.array([[1,                         0,                          0],
-                         [0, np.cos(current_config[0]), -np.sin(current_config[0])],
-                         [0, np.sin(current_config[0]),  np.cos(current_config[0])]])
+        T_sb = np.array(
+            [
+                [1, 0, 0],
+                [0, np.cos(current_config[0]), -np.sin(current_config[0])],
+                [0, np.sin(current_config[0]), np.cos(current_config[0])],
+            ]
+        )
         delta_q = np.dot(T_sb, d_q_b)
 
         # The final chassis configuration with the change in q
         final_chassis_config = current_chassis_config + delta_q
 
         # Write to CSV as 13-vector with the gripper state and return the 12-vector config for the next iteration
-        next_config = np.concatenate((final_chassis_config, final_arm_config, final_wheel_config))
+        next_config = np.concatenate(
+            (final_chassis_config, final_arm_config, final_wheel_config)
+        )
         final_config = np.append(next_config, gripper_state)
-        if save: self.csvwriter.writerow(final_config)
+        if save:
+            self.csvwriter.writerow(final_config)
         return next_config
 
-
     ###################################################################################################################
-    #================================================== Milestone 2 ==================================================#
+    # ================================================== Milestone 2 ==================================================#
     ###################################################################################################################
-
 
     @staticmethod
     def get_trajectory_time(X_start, X_end, linear_vel=0.25, angular_vel=0.25):
@@ -132,15 +148,19 @@ class RobotController:
         R_end, p_end = mr.TransToRp(X_end)
 
         # Calculate the linear distance and time using simple Euclidean distance
-        linear_distance = (p_start[0] - p_end[0]) ** 2 + \
-                          (p_start[1] - p_end[1]) ** 2 + \
-                          (p_start[2] - p_end[2]) ** 2
+        linear_distance = (
+            (p_start[0] - p_end[0]) ** 2
+            + (p_start[1] - p_end[1]) ** 2
+            + (p_start[2] - p_end[2]) ** 2
+        )
         linear_distance = np.sqrt(linear_distance)
         linear_time = linear_distance / linear_vel
 
         # Get the angular distance and time by calculating the angle of both configurations and subtracting
-        angular_distance = np.arccos((np.trace(R_end) - 1) / 2) - np.arccos((np.trace(R_start) - 1) / 2)
-        angular_time  = angular_distance / angular_vel
+        angular_distance = np.arccos((np.trace(R_end) - 1) / 2) - np.arccos(
+            (np.trace(R_start) - 1) / 2
+        )
+        angular_time = angular_distance / angular_vel
 
         # Returns the maximum time taken
         if linear_time < angular_time:
@@ -155,8 +175,21 @@ class RobotController:
         :param T:             The CSV file to be parsed
         :param gripper_state: The gripper state associated with the transformation matrix
         """
-        out = [T[0][0], T[0][1], T[0][2], T[1][0], T[1][1], T[1][2], T[2][0], T[2][1], T[2][2],
-               T[0][3], T[1][3], T[2][3], gripper_state]
+        out = [
+            T[0][0],
+            T[0][1],
+            T[0][2],
+            T[1][0],
+            T[1][1],
+            T[1][2],
+            T[2][0],
+            T[2][1],
+            T[2][2],
+            T[0][3],
+            T[1][3],
+            T[2][3],
+            gripper_state,
+        ]
         self.csvwriter.writerow(out)
 
     def create_trajectory_step(self, X_start, X_end, k, gripper_state, save):
@@ -188,7 +221,9 @@ class RobotController:
 
         return trajectory_step
 
-    def trajectory_generator(self, T_se_initial, T_sc_initial, T_sc_final, T_ce_grasp, T_ce_standoff, k, save):
+    def trajectory_generator(
+        self, T_se_initial, T_sc_initial, T_sc_final, T_ce_grasp, T_ce_standoff, k, save
+    ):
         """
         Generates the reference trajectory for the end-effector frame {e}.
         This consists of 8 concatenated trajectory segments, with each beginning and ending at rest.
@@ -224,12 +259,14 @@ class RobotController:
 
         # Initialize gripper_steps array to contain the gripper information for the trajectory
         gripper_steps = []
-        step_info    = []
+        step_info = []
 
         # Step 1: Move from T_se_initial to T_se_standoff_initial
         # This can be calculated by multiplying T_sc_initial @ T_ce_standoff = T_se_standoff_initial
         T_se_standoff_initial = T_sc_initial @ T_ce_standoff
-        s1 = self.create_trajectory_step(T_se_initial, T_se_standoff_initial, k, 0, save)
+        s1 = self.create_trajectory_step(
+            T_se_initial, T_se_standoff_initial, k, 0, save
+        )
         # Defines the metadata (gripper_step and step_info) for the step for logging
         for _ in s1:
             gripper_steps.append(0)
@@ -238,33 +275,43 @@ class RobotController:
         # Step 2: Move from T_se_standoff_initial to T_se_grasp_initial
         # This can be calculated by multiplying T_sc_initial and T_ce_grasp
         T_se_grasp_initial = T_sc_initial @ T_ce_grasp
-        s2 = self.create_trajectory_step(T_se_standoff_initial, T_se_grasp_initial, k, 0, save)
+        s2 = self.create_trajectory_step(
+            T_se_standoff_initial, T_se_grasp_initial, k, 0, save
+        )
         for _ in s2:
             gripper_steps.append(0)
             step_info.append(2)
 
         # Step 3: Close gripper for 1 second
-        s3 = self.create_trajectory_step(T_se_grasp_initial, T_se_grasp_initial, k, 1, save)
+        s3 = self.create_trajectory_step(
+            T_se_grasp_initial, T_se_grasp_initial, k, 1, save
+        )
         for _ in s3:
             gripper_steps.append(1)
             step_info.append(3)
 
         # Step 4: Move back to standoff configuration
-        s4 = self.create_trajectory_step(T_se_grasp_initial, T_se_standoff_initial, k, 1, save)
+        s4 = self.create_trajectory_step(
+            T_se_grasp_initial, T_se_standoff_initial, k, 1, save
+        )
         for _ in s4:
             gripper_steps.append(1)
             step_info.append(4)
 
         # Step 5: Move from T_se_standoff_initial to T_se_standoff_final
         T_se_standoff_final = T_sc_final @ T_ce_standoff
-        s5 = self.create_trajectory_step(T_se_standoff_initial, T_se_standoff_final, k, 1, save)
+        s5 = self.create_trajectory_step(
+            T_se_standoff_initial, T_se_standoff_final, k, 1, save
+        )
         for _ in s5:
             gripper_steps.append(1)
             step_info.append(5)
 
         # Step 6: Move from T_se_standoff_final to T_se_grasp_final
         T_se_grasp_final = T_sc_final @ T_ce_grasp
-        s6 = self.create_trajectory_step(T_se_standoff_final, T_se_grasp_final, k, 1, save)
+        s6 = self.create_trajectory_step(
+            T_se_standoff_final, T_se_grasp_final, k, 1, save
+        )
         for _ in s6:
             gripper_steps.append(1)
             step_info.append(6)
@@ -276,7 +323,9 @@ class RobotController:
             step_info.append(7)
 
         # Step 8: Move back to the T_se_standoff_final
-        s8 = self.create_trajectory_step(T_se_grasp_final, T_se_standoff_final, k, 0, save)
+        s8 = self.create_trajectory_step(
+            T_se_grasp_final, T_se_standoff_final, k, 0, save
+        )
         for _ in s8:
             gripper_steps.append(0)
             step_info.append(8)
@@ -285,7 +334,7 @@ class RobotController:
         return full_trajectory, gripper_steps, step_info
 
     ###################################################################################################################
-    #================================================== Milestone 3 ==================================================#
+    # ================================================== Milestone 3 ==================================================#
     ###################################################################################################################
 
     @staticmethod
@@ -299,10 +348,14 @@ class RobotController:
         :return:     The T_sb configuration of the robot base
         """
 
-        T_sb = np.array([[np.cos(phi_), -1 * np.sin(phi_), 0, x_],
-                         [np.sin(phi_),      np.cos(phi_), 0, y_],
-                         [          0,                  0, 1, z_],
-                         [          0,                  0, 0,  1]])
+        T_sb = np.array(
+            [
+                [np.cos(phi_), -1 * np.sin(phi_), 0, x_],
+                [np.sin(phi_), np.cos(phi_), 0, y_],
+                [0, 0, 1, z_],
+                [0, 0, 0, 1],
+            ]
+        )
         return T_sb
 
     def get_T_se(self, M_0e, Blist, configuration, T_b0):
@@ -319,7 +372,9 @@ class RobotController:
         T_0e = mr.FKinBody(M_0e, Blist, configuration[3:8])
 
         # Uses configuration parsing to determine the base frame
-        T_sb = self.get_T_sb(configuration[0], configuration[1], configuration[2], 0.0963)
+        T_sb = self.get_T_sb(
+            configuration[0], configuration[1], configuration[2], 0.0963
+        )
 
         # Uses provided info to determine the arm hub's position relative to the space frame
         T_s0 = np.dot(T_sb, T_b0)
@@ -354,7 +409,9 @@ class RobotController:
         return J
 
     @staticmethod
-    def feedback_command_ff_pi(T_se, T_se_d, T_se_d_next, K_p, K_i, X_err_tot, timestep):
+    def feedback_command_ff_pi(
+        T_se, T_se_d, T_se_d_next, K_p, K_i, X_err_tot, timestep
+    ):
         """
         Calculates the end-effector twist V necessary to follow the trajectory defined by T_se and T_se_d.
         This uses the feedforward, proportional, and integral terms for the controller.
@@ -370,12 +427,14 @@ class RobotController:
         """
 
         # Feed forward term
-        Vd      = mr.se3ToVec((1 / timestep) * mr.MatrixLog6(mr.TransInv(T_se_d) @ T_se_d_next))
+        Vd = mr.se3ToVec(
+            (1 / timestep) * mr.MatrixLog6(mr.TransInv(T_se_d) @ T_se_d_next)
+        )
         ff_term = np.dot(mr.Adjoint(np.dot(mr.TransInv(T_se), T_se_d)), Vd)
 
         # Proportional and integral terms
-        Xerr              = mr.MatrixLog6(np.dot(mr.TransInv(T_se), T_se_d))
-        Xerr              = mr.se3ToVec(Xerr)
+        Xerr = mr.MatrixLog6(np.dot(mr.TransInv(T_se), T_se_d))
+        Xerr = mr.se3ToVec(Xerr)
         proportional_term = np.dot(K_p, Xerr)
 
         # The integral term needs the sum of all past errors
@@ -402,8 +461,8 @@ class RobotController:
         """
 
         # Proportional and integral terms
-        Xerr              = mr.MatrixLog6(np.dot(mr.TransInv(T_se), T_se_d))
-        Xerr              = mr.se3ToVec(Xerr)
+        Xerr = mr.MatrixLog6(np.dot(mr.TransInv(T_se), T_se_d))
+        Xerr = mr.se3ToVec(Xerr)
         proportional_term = np.dot(K_p, Xerr)
 
         # The integral term needs the sum of all past errors
@@ -430,7 +489,9 @@ class RobotController:
         """
 
         # Feed forward term
-        Vd = mr.se3ToVec((1 / timestep) * mr.MatrixLog6(mr.TransInv(T_se_d) @ T_se_d_next))
+        Vd = mr.se3ToVec(
+            (1 / timestep) * mr.MatrixLog6(mr.TransInv(T_se_d) @ T_se_d_next)
+        )
         ff_term = np.dot(mr.Adjoint(np.dot(mr.TransInv(T_se), T_se_d)), Vd)
 
         # Proportional and integral terms
@@ -442,10 +503,22 @@ class RobotController:
 
         return Xerr, V
 
-    def feedback_control(self, T_se, T_se_d, T_se_d_next,
-                         K_p, K_i, timestep, M_0e, Blist,
-                         configuration, T_b0, X_err_tot,
-                         method, is_printing):
+    def feedback_control(
+        self,
+        T_se,
+        T_se_d,
+        T_se_d_next,
+        K_p,
+        K_i,
+        timestep,
+        M_0e,
+        Blist,
+        configuration,
+        T_b0,
+        X_err_tot,
+        method,
+        is_printing,
+    ):
         """
         Calculates the next configuration necessary to follow the trajectory delineated by T_se and T_se_d.
 
@@ -470,17 +543,21 @@ class RobotController:
 
         # Choose feedback controller based on method
         if method == 1:
-            Xerr, command = self.feedback_command_ff_pi(T_se, T_se_d, T_se_d_next,
-                                                        K_p, K_i, X_err_tot, timestep)
+            Xerr, command = self.feedback_command_ff_pi(
+                T_se, T_se_d, T_se_d_next, K_p, K_i, X_err_tot, timestep
+            )
         elif method == 2:
-            Xerr, command = self.feedback_command_pi(T_se, T_se_d,
-                                                     K_p, K_i, X_err_tot, timestep)
+            Xerr, command = self.feedback_command_pi(
+                T_se, T_se_d, K_p, K_i, X_err_tot, timestep
+            )
         elif method == 3:
-            Xerr, command = self.feedback_command_ff_p(T_se, T_se_d, T_se_d_next,
-                                                       K_p, timestep)
+            Xerr, command = self.feedback_command_ff_p(
+                T_se, T_se_d, T_se_d_next, K_p, timestep
+            )
         else:
-            Xerr, command = self.feedback_command_ff_pi(T_se, T_se_d, T_se_d_next,
-                                                        K_p, K_i, X_err_tot, timestep)
+            Xerr, command = self.feedback_command_ff_pi(
+                T_se, T_se_d, T_se_d_next, K_p, K_i, X_err_tot, timestep
+            )
 
         # Determines the Jacobian matrix, checks if it's violating joint limits, and then takes the pseudo-inverse
         J = self.get_jacobian(M_0e, Blist, configuration_short, T_b0)
@@ -489,17 +566,19 @@ class RobotController:
 
         # Prints out the Jacobian and other associated information
         if is_printing:
-            print(f"config: {configuration_short}\n"
-                  f"t: {timestep}\n"
-                  f"Xd:\n{T_se_d}\n"
-                  f"Xd_next:\n{T_se_d_next}\n"
-                  f"X:\n{T_se}\n"
-                  f"Kp: {K_p}\n"
-                  f"Ki: {K_i}\n"
-                  f"X_err: {Xerr}\n"
-                  f"V: {command}\n"
-                  f"J:\n{J}\n"
-                  f"(u, theta):\n{Jpinv @ command}")
+            print(
+                f"config: {configuration_short}\n"
+                f"t: {timestep}\n"
+                f"Xd:\n{T_se_d}\n"
+                f"Xd_next:\n{T_se_d_next}\n"
+                f"X:\n{T_se}\n"
+                f"Kp: {K_p}\n"
+                f"Ki: {K_i}\n"
+                f"X_err: {Xerr}\n"
+                f"V: {command}\n"
+                f"J:\n{J}\n"
+                f"(u, theta):\n{Jpinv @ command}"
+            )
 
         # Returns the error and the controls (u, theta dot)
         return Xerr, Jpinv @ command
@@ -522,8 +601,9 @@ class RobotController:
 
         # The constraints on the joints is based off of this array.
         # Joints 3 and 4 have constraints as described in the wiki
-        constraints = np.array([0, 0, -0.2, -0.2, 0, # Arm constraints
-                                0, 0, 0, 0])         # Wheel constraints
+        constraints = np.array(
+            [0, 0, -0.2, -0.2, 0, 0, 0, 0, 0]  # Arm constraints
+        )  # Wheel constraints
 
         # If the configuration is less than the constraints we'll be considered as a singularity
         joint_tests = np.less(configuration[3:], constraints)
@@ -546,128 +626,146 @@ class RobotController:
     def end(self):
         self.csvfile.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     output_directory = "../results/newTask"
 
     ###################################################################################################################
-    #======================================== Robot Transformation Matrices ==========================================#
+    # ======================================== Robot Transformation Matrices ==========================================#
     ###################################################################################################################
 
     # Initial robot configuration
-    phi    = np.pi / 4  # 30 degrees orientation error
-    x      = -0.3       # error along the x-axis from space frame
-    y      = 0.2        # error along the y-axis from space frame
+    phi = np.pi / 4  # 30 degrees orientation error
+    x = -0.3  # error along the x-axis from space frame
+    y = 0.2  # error along the y-axis from space frame
     config = np.array([phi, x, y, 0, -0.262, -0.524, -0.524, 0, 0, 0, 0, 0])
 
     # Space representation of the b frame given everything is 0
-    t_sb = [[np.cos(phi), -np.sin(phi), 0,      x],
-            [np.sin(phi),  np.cos(phi), 0,      y],
-            [          0,            0, 1, 0.0963],
-            [          0,            0, 0,      1]]
+    t_sb = [
+        [np.cos(phi), -np.sin(phi), 0, x],
+        [np.sin(phi), np.cos(phi), 0, y],
+        [0, 0, 1, 0.0963],
+        [0, 0, 0, 1],
+    ]
 
     # Fixed offset from the chassis frame {b} to the base frame of the arm {0}
-    t_b0 = np.array([[1, 0, 0, 0.1662],
-                     [0, 1, 0,      0],
-                     [0, 0, 1, 0.0026],
-                     [0, 0, 0,      1]])
+    t_b0 = np.array([[1, 0, 0, 0.1662], [0, 1, 0, 0], [0, 0, 1, 0.0026], [0, 0, 0, 1]])
 
     # Arm at home configuration (all joint angles 0) end effector {e} relative to {0}
-    m_0e = np.array([[1, 0, 0,  0.033],
-                     [0, 1, 0,      0],
-                     [0, 0, 1, 0.6546],
-                     [0, 0, 0,      1]])
+    m_0e = np.array([[1, 0, 0, 0.033], [0, 1, 0, 0], [0, 0, 1, 0.6546], [0, 0, 0, 1]])
 
     # Trajectory initial starting point for end effector frame
-    t_se_initial = np.array([[ 0, 0, 1,   0],
-                             [ 0, 1, 0,   0],
-                             [-1, 0, 0, 0.5],
-                             [ 0, 0, 0,   1]])
+    t_se_initial = np.array([[0, 0, 1, 0], [0, 1, 0, 0], [-1, 0, 0, 0.5], [0, 0, 0, 1]])
 
     # Blist
-    blist = np.array([[    0,       0,       0,       0, 0],
-                      [    0,      -1,      -1,      -1, 0],
-                      [    1,       0,       0,       0, 1],
-                      [    0, -0.5076, -0.3526, -0.2176, 0],
-                      [0.033,       0,       0,       0, 0],
-                      [    0,       0,       0,       0, 0]])
+    blist = np.array(
+        [
+            [0, 0, 0, 0, 0],
+            [0, -1, -1, -1, 0],
+            [1, 0, 0, 0, 1],
+            [0, -0.5076, -0.3526, -0.2176, 0],
+            [0.033, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0],
+        ]
+    )
 
     ###################################################################################################################
-    #========================================= Cube Transformation Matrices ==========================================#
+    # ========================================= Cube Transformation Matrices ==========================================#
     ###################################################################################################################
 
     # Initial and final configuration of the cube
     # New task has the y = 1.5 for t_sc_initial
-    t_sc_initial = np.array([[1, 0, 0,     1],
-                             [0, 1, 0,     0],
-                             [0, 0, 1, 0.025],
-                             [0, 0, 0,     1]])
+    t_sc_initial = np.array(
+        [[1, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0.025], [0, 0, 0, 1]]
+    )
 
-    t_sc_final = np.array([[ 0, 1, 0,     0],
-                           [-1, 0, 0,    -1],
-                           [ 0, 0, 1, 0.025],
-                           [ 0, 0, 0,     1]])
+    t_sc_final = np.array(
+        [[0, 1, 0, 0], [-1, 0, 0, -1], [0, 0, 1, 0.025], [0, 0, 0, 1]]
+    )
 
     # Grasp and standoff configurations
-    theta = np.pi * -4/6
-    t_ce_grasp = np.array([[np.cos(theta), 0, -np.sin(theta),  0.01],
-                           [            0, 1,              0,     0],
-                           [np.sin(theta), 0,  np.cos(theta),     0],
-                           [            0, 0,              0,     1]])
+    theta = np.pi * -4 / 6
+    t_ce_grasp = np.array(
+        [
+            [np.cos(theta), 0, -np.sin(theta), 0.01],
+            [0, 1, 0, 0],
+            [np.sin(theta), 0, np.cos(theta), 0],
+            [0, 0, 0, 1],
+        ]
+    )
 
-    t_ce_standoff = np.array([[np.cos(theta), 0, -np.sin(theta),  0.01],
-                              [            0, 1,              0,     0],
-                              [np.sin(theta), 0,  np.cos(theta),   0.25],
-                              [            0, 0,              0,     1]])
+    t_ce_standoff = np.array(
+        [
+            [np.cos(theta), 0, -np.sin(theta), 0.01],
+            [0, 1, 0, 0],
+            [np.sin(theta), 0, np.cos(theta), 0.25],
+            [0, 0, 0, 1],
+        ]
+    )
 
     ###################################################################################################################
     # =========================================== Trajectory Generation ==============================================#
     ###################################################################################################################
 
-    controller  = RobotController(f"{output_directory}/output.csv")
-    printing_trajectory = False # If testing trajectory generation, the feedback controller shouldn't run
-    trajectory, gripper_states, steps_info = controller.trajectory_generator(t_se_initial,
-                                                                             t_sc_initial,
-                                                                             t_sc_final,
-                                                                             t_ce_grasp,
-                                                                             t_ce_standoff,
-                                                                             1,
-                                                                             printing_trajectory)
+    controller = RobotController(f"{output_directory}/output.csv")
+    printing_trajectory = (
+        False  # If testing trajectory generation, the feedback controller shouldn't run
+    )
+    trajectory, gripper_states, steps_info = controller.trajectory_generator(
+        t_se_initial,
+        t_sc_initial,
+        t_sc_final,
+        t_ce_grasp,
+        t_ce_standoff,
+        1,
+        printing_trajectory,
+    )
 
     ###################################################################################################################
     # ============================================== Feedback Control ================================================#
     ###################################################################################################################
 
-
     # Coefficients for feedback control
-    k_p = 9.25 # Best: k_p = 9.25 Overshoot: k_p = 2.25
-    k_i = 3.75 # Best: k_i = 3.75 Overshoot: k_i = 1.75
+    k_p = 9.25  # Best: k_p = 9.25 Overshoot: k_p = 2.25
+    k_i = 3.75  # Best: k_i = 3.75 Overshoot: k_i = 1.75
 
     if not printing_trajectory:
         # Open a file for logging
         log_txt_file = open(f"{output_directory}/log.txt", "w")
 
         # initial variables
-        X           = t_se_initial
-        X_err_list  = []
+        X = t_se_initial
+        X_err_list = []
         X_err_total = np.zeros(6)
         for index, ideal_config in enumerate(trajectory):
             if index < len(trajectory) - 1:
                 # Sets the variables for the feedback control based on the config and trajectory
-                Xd       = ideal_config
-                Xd_next  = trajectory[index + 1]
-                X        = controller.get_T_se(m_0e, blist, config, t_b0)
+                Xd = ideal_config
+                Xd_next = trajectory[index + 1]
+                X = controller.get_T_se(m_0e, blist, config, t_b0)
 
                 # controls is a 9-vector consisting of (u, theta dot)
-                X_err, controls = controller.feedback_control(X, Xd, Xd_next,
-                                                              np.eye(6) * k_p, k_i,
-                                                              0.01, m_0e, blist,
-                                                              config, t_b0, X_err_total,
-                                                              1, False)
+                X_err, controls = controller.feedback_control(
+                    X,
+                    Xd,
+                    Xd_next,
+                    np.eye(6) * k_p,
+                    k_i,
+                    0.01,
+                    m_0e,
+                    blist,
+                    config,
+                    t_b0,
+                    X_err_total,
+                    1,
+                    False,
+                )
                 X_err_list.append(X_err)
 
                 # Generates the next state
-                config = controller.next_state(config, controls,
-                                               0.01, 10, 10, gripper_states[index], True)
+                config = controller.next_state(
+                    config, controls, 0.01, 10, 10, gripper_states[index], True
+                )
 
                 # Logs everything
                 logline = f"Time: {index} Trajectory Step: {steps_info[index]} Config: {config}"
@@ -686,10 +784,12 @@ if __name__ == '__main__':
         x_err_csvwriter = csv.writer(open(f"{output_directory}/err.csv", "w"))
         x_err_csvwriter.writerows(X_err_list)
 
-        logline = f"\nFinished\n\n" \
-                  f"Trajectory CSV file can be found in: {controller.filename}\n" \
-                  f"Error Graph can be found in: {output_directory}/err.png\n" \
-                  f"Error CSV file can be found in: {output_directory}/err.csv\n" \
-                  f"Log file can be found {output_directory}/log.txt"
+        logline = (
+            f"\nFinished\n\n"
+            f"Trajectory CSV file can be found in: {controller.filename}\n"
+            f"Error Graph can be found in: {output_directory}/err.png\n"
+            f"Error CSV file can be found in: {output_directory}/err.csv\n"
+            f"Log file can be found {output_directory}/log.txt"
+        )
         print(logline)
         log_txt_file.write(logline)
