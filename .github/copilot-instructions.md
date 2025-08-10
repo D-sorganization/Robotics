@@ -364,21 +364,3 @@ NEEDED: Run quality-check.py to verify no placeholders
 Never pretend it's done without proof.
 
 # END COPILOT RULES — NO APPROXIMATIONS, NO PLACEHOLDERS, ALWAYS COMPLETE
-    if shaft_length_m <= 0:
-        raise ValueError(f"Shaft length must be positive, got {shaft_length_m} m")
-    
-    return abs(angular_velocity_rad_s * shaft_length_m)
-
-def test_calculate_club_head_speed():
-    """Test with typical driver swing."""
-    # 1.1684 m shaft, 250°/s = 4.363 rad/s
-    speed = calculate_club_head_speed(1.1684, 4.363)
-    assert speed == pytest.approx(5.098, rel=1e-3)
-    
-def test_calculate_club_head_speed_invalid():
-    """Test error cases."""
-    with pytest.raises(ValueError, match="Shaft length must be positive"):
-        calculate_club_head_speed(0.0, 4.363)
-    with pytest.raises(ValueError, match="Shaft length must be positive"):
-        calculate_club_head_speed(-1.0, 4.363)
-    
