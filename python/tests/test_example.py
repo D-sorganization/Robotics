@@ -1,2 +1,9 @@
-def test_sanity():
-    assert 2 + 2 == 4
+"""Example test file."""
+
+EXPECTED_SUM = 4
+
+
+def test_sanity() -> bool:
+    """Test basic sanity check that 2+2=4."""
+    result = 2 + 2
+    return result == EXPECTED_SUM
