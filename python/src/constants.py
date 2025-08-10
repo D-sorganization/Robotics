@@ -37,4 +37,3 @@ BUNKER_DEPTH_MM: float = 100.0   # [mm] Standard bunker depth
 TEMPERATURE_C: float = 20.0      # [°C] Standard temperature
 PRESSURE_HPA: float = 1013.25    # [hPa] Standard atmospheric pressure
 HUMIDITY_PERCENT: float = 50.0   # [%] Standard relative humidity
-

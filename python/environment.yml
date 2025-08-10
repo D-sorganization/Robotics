@@ -1,12 +1,18 @@
-name: sim-env
-channels: [conda-forge, defaults]
+name: robotics
+channels:
+  - conda-forge
+  - defaults
 dependencies:
-  - python=3.11
-  - numpy
-  - pandas
-  - matplotlib
-  - scipy
+  - python>=3.9
+  - numpy>=1.24.0
+  - scipy>=1.10.0
+  - pytest>=7.0.0
+  - pytest-cov>=4.0.0
+  - pytest-mock>=3.10.0
+  - ruff>=0.1.0
+  - black>=23.0.0
+  - mypy>=1.0.0
+  - pre-commit>=3.0.0
   - pip
   - pip:
-      - pytest
-      - pyyaml
+    - nbstripout>=0.6.0
