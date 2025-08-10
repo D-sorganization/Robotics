@@ -3,6 +3,17 @@
 target-version = "py311"
 line-length = 100
 
+# Exclude legacy code
+exclude = [
+    "archive/",
+    "legacy/",
+    "experimental/",
+    "*/migrations/",
+    "*_pb2.py",
+    "matlab/",
+    "output/",
+]
+
 [lint]
 # Enable ALL rules then selectively disable
 select = ["ALL"]
@@ -15,17 +26,6 @@ ignore = [
 # Stricter than defaults
 fixable = ["ALL"]
 unfixable = []
-
-# Exclude legacy code
-exclude = [
-    "archive/",
-    "legacy/",
-    "experimental/",
-    "*/migrations/",
-    "*_pb2.py",
-    "matlab/",
-    "output/",
-]
 
 # Flake8 settings
 flake8-quotes = {inline-quotes = "double", multiline-quotes = "double", docstring-quotes = "double"}
