@@ -40,12 +40,16 @@ else
 end
 
 %% Define grasp configurations
-% Vertical approach using a 90-degree rotation about the y-axis
-R_y = [0, 0, 1;
-       0, 1, 0;
-      -1, 0, 0];
+% Approach frame rotated about y by 36 degrees (pi/5)
+a = pi/5;  % [rad] rotation angle about y
+% Rotation matrix for a right-handed rotation about the y-axis by angle a
+R_y = [cos(a), 0,  sin(a);
+       0,      1,  0;
+      -sin(a), 0,  cos(a)];
+
+% Grasp and standoff expressed relative to the cube frame
 Tce_grasp = RpToTrans(R_y, [0; 0; 0]);
-Tce_standoff = RpToTrans(R_y, [0; 0; 0.15]);
+Tce_standoff = RpToTrans(R_y, [0; 0; 0.25]);
 
 % Precompute world-frame configurations
 Tse_standoff_initial = Tsc_initial * Tce_standoff;
