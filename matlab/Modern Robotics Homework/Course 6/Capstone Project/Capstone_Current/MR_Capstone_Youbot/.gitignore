@@ -1,0 +1,38 @@
+# Large files and archives
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.mp4
+*.avi
+*.mov
+
+# MATLAB temporary files
+*.asv
+*.autosave
+*.mat
+*.fig
+
+# Results and output files (keep the folder structure)
+results/*.csv
+results/*.mat
+results/*.png
+results/*.pdf
+results/*.txt
+results/*.mp4
+results/*.avi
+
+# System files
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Log files
+*.log
