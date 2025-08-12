@@ -381,7 +381,7 @@ function [Animation, Xerr, Traj, Td, grasp] = run_robotics_simulation(params)
     % Generating reference trajectory
     dt = params.dt;
     T_total = params.T_total;
-    Tf = calculateTf(T_total);
+    Tf = calculateTf(T_total, T_se_initial, T_standoff_initial, T_grasp, T_standoff_final, T_release);
     Traj = [];
     grasp_state = 0;
     for i = 1:8
