@@ -11,8 +11,8 @@ function robotics_gui()
     
     % Initialize default parameters
     params = struct();
-    params.kp = 1.5;
-    params.ki = 0.0;
+    params.kp = 1.0;  % Updated to optimal value
+    params.ki = 0.4;  % Updated to optimal value
     params.dt = 0.01;
     params.T_total = 13;
     params.maxspeed = 12.3;
@@ -34,29 +34,21 @@ function create_ui_components(fig, params)
                          'Position', [0.02, 0.7, 0.25, 0.28], ...
                          'FontSize', 12, 'FontWeight', 'bold');
     
-    % Kp slider
+    % Kp text box
     uicontrol(param_panel, 'Style', 'text', 'String', 'Proportional Gain (Kp):', ...
               'Position', [10, 180, 150, 20], 'HorizontalAlignment', 'left');
-    kp_slider = uicontrol(param_panel, 'Style', 'slider', ...
-                          'Min', 0.1, 'Max', 5.0, 'Value', params.kp, ...
-                          'Position', [10, 160, 150, 20], ...
-                          'Callback', @(src,~) update_kp_display(src, kp_text));
-    kp_text = uicontrol(param_panel, 'Style', 'text', ...
-                        'String', sprintf('%.2f', params.kp), ...
-                        'Position', [170, 160, 50, 20], ...
-                        'HorizontalAlignment', 'left');
+    kp_edit = uicontrol(param_panel, 'Style', 'edit', ...
+                        'String', num2str(params.kp), ...
+                        'Position', [10, 160, 80, 20], ...
+                        'Callback', @(src,~) update_kp(src));
     
-    % Ki slider
+    % Ki text box
     uicontrol(param_panel, 'Style', 'text', 'String', 'Integral Gain (Ki):', ...
               'Position', [10, 130, 150, 20], 'HorizontalAlignment', 'left');
-    ki_slider = uicontrol(param_panel, 'Style', 'slider', ...
-                          'Min', 0.0, 'Max', 2.0, 'Value', params.ki, ...
-                          'Position', [10, 110, 150, 20], ...
-                          'Callback', @(src,~) update_ki_display(src, ki_text));
-    ki_text = uicontrol(param_panel, 'Style', 'text', ...
-                        'String', sprintf('%.2f', params.ki), ...
-                        'Position', [170, 110, 50, 20], ...
-                        'HorizontalAlignment', 'left');
+    ki_edit = uicontrol(param_panel, 'Style', 'edit', ...
+                        'String', num2str(params.ki), ...
+                        'Position', [10, 110, 80, 20], ...
+                        'Callback', @(src,~) update_ki(src));
     
     % Time step
     uicontrol(param_panel, 'Style', 'text', 'String', 'Time Step (dt):', ...
@@ -83,7 +75,7 @@ function create_ui_components(fig, params)
     run_btn = uicontrol(control_panel, 'Style', 'pushbutton', ...
                         'String', 'Run Simulation', ...
                         'Position', [10, 40, 100, 30], ...
-                        'Callback', @(src,~) run_simulation(fig, kp_slider, ki_slider, dt_edit, T_edit));
+                        'Callback', @(src,~) run_simulation(fig, kp_edit, ki_edit, dt_edit, T_edit));
     
     % Export results button
     export_btn = uicontrol(control_panel, 'Style', 'pushbutton', ...
@@ -92,9 +84,32 @@ function create_ui_components(fig, params)
                            'Callback', @(src,~) export_results(fig), ...
                            'Enable', 'off');
     
+    % Save/Load panel
+    save_panel = uipanel(fig, 'Title', 'Save/Load Parameters', ...
+                        'Position', [0.02, 0.45, 0.25, 0.08], ...
+                        'FontSize', 12, 'FontWeight', 'bold');
+    
+    % Save parameters button
+    save_btn = uicontrol(save_panel, 'Style', 'pushbutton', ...
+                         'String', 'Save Best', ...
+                         'Position', [10, 10, 80, 25], ...
+                         'Callback', @(src,~) save_best_parameters(fig, kp_edit, ki_edit));
+    
+    % Save custom button
+    save_custom_btn = uicontrol(save_panel, 'Style', 'pushbutton', ...
+                                'String', 'Save Custom', ...
+                                'Position', [100, 10, 80, 25], ...
+                                'Callback', @(src,~) save_custom_parameters(fig, kp_edit, ki_edit, dt_edit, T_edit));
+    
+    % Load button
+    load_btn = uicontrol(save_panel, 'Style', 'pushbutton', ...
+                         'String', 'Load', ...
+                         'Position', [190, 10, 60, 25], ...
+                         'Callback', @(src,~) load_parameters(fig, kp_edit, ki_edit, dt_edit, T_edit));
+    
     % Results panel
     results_panel = uipanel(fig, 'Title', 'Simulation Results', ...
-                           'Position', [0.02, 0.02, 0.25, 0.51], ...
+                           'Position', [0.02, 0.02, 0.25, 0.41], ...
                            'FontSize', 12, 'FontWeight', 'bold');
     
     % Results text area
@@ -111,10 +126,8 @@ function create_ui_components(fig, params)
     
     % Store UI handles
     handles = struct();
-    handles.kp_slider = kp_slider;
-    handles.ki_slider = ki_slider;
-    handles.kp_text = kp_text;
-    handles.ki_text = ki_text;
+    handles.kp_edit = kp_edit;
+    handles.ki_edit = ki_edit;
     handles.dt_edit = dt_edit;
     handles.T_edit = T_edit;
     handles.run_btn = run_btn;
@@ -125,14 +138,12 @@ function create_ui_components(fig, params)
     setappdata(fig, 'handles', handles);
 end
 
-function update_kp_display(slider, text)
-    kp_val = get(slider, 'Value');
-    set(text, 'String', sprintf('%.2f', kp_val));
+function update_kp(edit)
+    % Validation will be done in run_simulation
 end
 
-function update_ki_display(slider, text)
-    ki_val = get(slider, 'Value');
-    set(text, 'String', sprintf('%.2f', ki_val));
+function update_ki(edit)
+    % Validation will be done in run_simulation
 end
 
 function update_dt(edit)
@@ -143,10 +154,124 @@ function update_T_total(edit)
     % Validation will be done in run_simulation
 end
 
-function run_simulation(fig, kp_slider, ki_slider, dt_edit, T_edit)
+function save_best_parameters(fig, kp_edit, ki_edit)
+    % Save the optimal parameters to the main simulation script
+    try
+        % Read the main simulation file
+        filename = 'main_simulation.m';
+        fid = fopen(filename, 'r');
+        if fid == -1
+            errordlg('Could not open main_simulation.m', 'Save Error');
+            return;
+        end
+        
+        content = textscan(fid, '%s', 'Delimiter', '\n', 'Whitespace', '');
+        fclose(fid);
+        lines = content{1};
+        
+        % Get current values
+        kp_val = str2double(get(kp_edit, 'String'));
+        ki_val = str2double(get(ki_edit, 'String'));
+        
+        % Find and replace the Kp and Ki lines
+        for i = 1:length(lines)
+            if contains(lines{i}, 'Mybot.kp =') && contains(lines{i}, 'eye(6)')
+                lines{i} = sprintf('Mybot.kp = %.1f * eye(6);  % Updated to optimal value', kp_val);
+            elseif contains(lines{i}, 'Mybot.ki =') && contains(lines{i}, 'eye(6)')
+                lines{i} = sprintf('Mybot.ki = %.1f * eye(6);  % Updated to optimal value', ki_val);
+            end
+        end
+        
+        % Write back to file
+        fid = fopen(filename, 'w');
+        for i = 1:length(lines)
+            fprintf(fid, '%s\n', lines{i});
+        end
+        fclose(fid);
+        
+        msgbox(sprintf('Best parameters saved to main_simulation.m\nKp = %.1f, Ki = %.1f', kp_val, ki_val), 'Save Complete');
+        
+    catch ME
+        errordlg(['Error saving parameters: ' ME.message], 'Save Error');
+    end
+end
+
+function save_custom_parameters(fig, kp_edit, ki_edit, dt_edit, T_edit)
+    % Save custom parameters to a file
+    try
+        % Get current values
+        kp_val = str2double(get(kp_edit, 'String'));
+        ki_val = str2double(get(ki_edit, 'String'));
+        dt_val = str2double(get(dt_edit, 'String'));
+        T_val = str2double(get(T_edit, 'String'));
+        
+        % Validate values
+        if isnan(kp_val) || isnan(ki_val) || isnan(dt_val) || isnan(T_val)
+            errordlg('Invalid parameter values', 'Save Error');
+            return;
+        end
+        
+        % Create parameter struct
+        params = struct();
+        params.kp = kp_val;
+        params.ki = ki_val;
+        params.dt = dt_val;
+        params.T_total = T_val;
+        params.maxspeed = 12.3;
+        
+        % Get filename from user
+        [filename, pathname] = uiputfile('*.mat', 'Save Parameters As');
+        if filename == 0
+            return;
+        end
+        
+        % Save parameters
+        fullpath = fullfile(pathname, filename);
+        save(fullpath, 'params');
+        
+        msgbox(sprintf('Parameters saved to %s', filename), 'Save Complete');
+        
+    catch ME
+        errordlg(['Error saving parameters: ' ME.message], 'Save Error');
+    end
+end
+
+function load_parameters(fig, kp_edit, ki_edit, dt_edit, T_edit)
+    % Load parameters from a file
+    try
+        % Get filename from user
+        [filename, pathname] = uigetfile('*.mat', 'Load Parameters');
+        if filename == 0
+            return;
+        end
+        
+        % Load parameters
+        fullpath = fullfile(pathname, filename);
+        data = load(fullpath);
+        
+        if isfield(data, 'params')
+            params = data.params;
+            
+            % Update GUI
+            set(kp_edit, 'String', num2str(params.kp));
+            set(ki_edit, 'String', num2str(params.ki));
+            set(dt_edit, 'String', num2str(params.dt));
+            set(T_edit, 'String', num2str(params.T_total));
+            
+            msgbox(sprintf('Parameters loaded from %s', filename), 'Load Complete');
+        else
+            errordlg('Invalid parameter file', 'Load Error');
+        end
+        
+    catch ME
+        errordlg(['Error loading parameters: ' ME.message], 'Load Error');
+    end
+end
+
+function run_simulation(fig, kp_edit, ki_edit, dt_edit, T_edit)
     % Get current parameters
-    kp_val = get(kp_slider, 'Value');
-    ki_val = get(ki_slider, 'Value');
+    kp_val = str2double(get(kp_edit, 'String'));
+    ki_val = str2double(get(ki_edit, 'String'));
     dt_val = str2double(get(dt_edit, 'String'));
     T_val = str2double(get(T_edit, 'String'));
     
@@ -157,6 +282,14 @@ function run_simulation(fig, kp_slider, ki_slider, dt_edit, T_edit)
     end
     if isnan(T_val) || T_val <= 0
         errordlg('Invalid total time. Must be positive number.', 'Parameter Error');
+        return;
+    end
+    if isnan(kp_val) || kp_val <= 0
+        errordlg('Invalid Kp. Must be positive number.', 'Parameter Error');
+        return;
+    end
+    if isnan(ki_val) || ki_val < 0
+        errordlg('Invalid Ki. Must be non-negative number.', 'Parameter Error');
         return;
     end
     
@@ -375,10 +508,10 @@ function update_results_display(fig, results)
                       '  Mean Error: %.4f\n' ...
                       '  Simulation Steps: %d\n\n' ...
                       'Files Generated:\n' ...
-                      '  - Animation.csv\n' ...
-                      '  - Traj.csv\n' ...
-                      '  - Xerr.mat\n' ...
-                      '  - Results Summary'], ...
+                      '  - results/Animation.csv\n' ...
+                      '  - results/Traj.csv\n' ...
+                      '  - results/Xerr.mat\n' ...
+                      '  - results/performance_summary.txt'], ...
                       results.params.kp, results.params.ki, ...
                       results.params.dt, results.params.T_total, ...
                       final_error, max_error, mean_error, ...
@@ -394,18 +527,23 @@ function export_results(fig)
         return;
     end
     
+    % Create results folder if it doesn't exist
+    if ~exist('results', 'dir')
+        mkdir('results');
+    end
+    
     % Create timestamp for unique filenames
     timestamp = datestr(now, 'yyyymmdd_HHMMSS');
     
     % Export Animation.csv (required format)
-    writematrix(results.Animation, sprintf('Animation_%s.csv', timestamp));
+    writematrix(results.Animation, sprintf('results/Animation_%s.csv', timestamp));
     
     % Export Traj.csv (required format)
-    writematrix(results.Traj, sprintf('Traj_%s.csv', timestamp));
+    writematrix(results.Traj, sprintf('results/Traj_%s.csv', timestamp));
     
     % Export Xerr.mat (required format)
     Xerr = results.Xerr;
-    save(sprintf('Xerr_%s.mat', timestamp), 'Xerr');
+    save(sprintf('results/Xerr_%s.mat', timestamp), 'Xerr');
     
     % Export enhanced results summary
     create_results_summary(results, timestamp);
@@ -416,7 +554,7 @@ function export_results(fig)
     % Export plots as images
     save_plots_as_images(fig, timestamp);
     
-    msgbox(sprintf('Results exported successfully!\nFiles saved with timestamp: %s', timestamp), 'Export Complete');
+    msgbox(sprintf('Results exported successfully!\nFiles saved to results/ folder with timestamp: %s', timestamp), 'Export Complete');
 end
 
 function create_results_summary(results, timestamp)
@@ -427,7 +565,7 @@ function create_results_summary(results, timestamp)
     rms_error = rms(sqrt(sum(results.Xerr.^2, 1)));
     
     % Create summary file
-    filename = sprintf('simulation_summary_%s.txt', timestamp);
+    filename = sprintf('results/simulation_summary_%s.txt', timestamp);
     fid = fopen(filename, 'w');
     
     fprintf(fid, 'MOBILE MANIPULATION SIMULATION RESULTS\n');
@@ -463,7 +601,7 @@ function create_results_summary(results, timestamp)
 end
 
 function create_parameter_report(params, timestamp)
-    filename = sprintf('parameters_%s.txt', timestamp);
+    filename = sprintf('results/parameters_%s.txt', timestamp);
     fid = fopen(filename, 'w');
     
     fprintf(fid, 'SIMULATION PARAMETERS\n');
@@ -486,10 +624,10 @@ end
 
 function save_plots_as_images(fig, timestamp)
     % Save the current figure as high-resolution image
-    filename = sprintf('simulation_plots_%s.png', timestamp);
+    filename = sprintf('results/simulation_plots_%s.png', timestamp);
     print(fig, filename, '-dpng', '-r300');
     
     % Also save as PDF for vector graphics
-    filename_pdf = sprintf('simulation_plots_%s.pdf', timestamp);
+    filename_pdf = sprintf('results/simulation_plots_%s.pdf', timestamp);
     print(fig, filename_pdf, '-dpdf', '-bestfit');
 end
