@@ -81,8 +81,8 @@ disp('Trajectory generated');
 Mybot.q = [0,0,0];
 Mybot.theta = [0,0,0.2,-1.67,0]';
 Mybot.wheelAngle = [pi/2,pi/2,pi/2,pi/2];% Do not affect the simulation
-Mybot.kp = 1.0 * eye(6);  % Updated to optimal value
-Mybot.ki = 0.4 * eye(6);  % Updated to optimal value
+Mybot.kp = 7.0 * eye(6);  
+Mybot.ki = 0.4 * eye(6);  
 maxspeed = 12.3*ones(1,9);% take uniform max speed.
 jointLimits = [[pi,-pi]',[pi,-pi]',...
     [pi,-pi]',[pi,-pi]'...
