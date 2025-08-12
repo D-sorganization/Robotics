@@ -1,0 +1,19 @@
+MOBILE MANIPULATION SIMULATION SUMMARY
+======================================
+
+Simulation Parameters:
+- Time Step: 0.01 seconds
+- Total Steps: 1308
+- Total Time: 13.08 seconds
+
+Error Statistics:
+- Angular X: Max=3.043718, RMS=1.325207
+- Angular Y: Max=3.078296, RMS=1.370590
+- Angular Z: Max=3.048652, RMS=1.303991
+- Linear X: Max=4086.088056, RMS=1171.402198
+- Linear Y: Max=5394.005228, RMS=1382.180874
+- Linear Z: Max=4723.453251, RMS=1382.055638
+
+Trajectory Information:
+- Total Chassis Distance: 6555.126 meters
+- Final Position: (301.692, -123.380, 0.001)
