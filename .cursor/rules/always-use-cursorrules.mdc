@@ -1,4 +1,4 @@
-Always respect the guidelines contained in .cursorrules.md file in the main directory.
+Always respect the guidelines contained in .cursorrules.md file in this directory.
 
 ## Key Principles:
 1. **NEVER work on main branch** - always create feature branches
@@ -9,7 +9,7 @@ Always respect the guidelines contained in .cursorrules.md file in the main dire
 6. **ALWAYS show proof** with full command output
 
 ## When in doubt:
-- Check .cursorrules.md for specific requirements
+- Check .cursorrules.md in this directory for specific requirements
 - Follow the workflow: Branch → Plan → Execute → Verify → Document
 - If blocked, explain exactly why and what's needed to proceed
 
