@@ -1,5 +1,18 @@
 Always respect the guidelines contained in .cursorrules.md file in the main directory.
 
+## Key Principles:
+1. **NEVER work on main branch** - always create feature branches
+2. **NEVER use placeholders** - implement complete, working code
+3. **NEVER skip verification** - run all quality checks before claiming completion
+4. **ALWAYS cite sources** for constants and scientific values
+5. **ALWAYS include tests** for both valid and invalid inputs
+6. **ALWAYS show proof** with full command output
+
+## When in doubt:
+- Check .cursorrules.md for specific requirements
+- Follow the workflow: Branch → Plan → Execute → Verify → Document
+- If blocked, explain exactly why and what's needed to proceed
+
 ---
 alwaysApply: true
 ---
