@@ -1,0 +1,74 @@
+# Robotics Repository Requirements
+# ===============================
+
+# Core Scientific Computing
+# =========================
+numpy==2.0.1
+pandas==2.2.2
+matplotlib==3.9.0
+scipy==1.13.1
+
+# Robotics and Control Systems
+# ===========================
+# Uncomment based on your needs:
+# pyserial==3.5              # Serial communication
+# pymavlink==2.4.37          # MAVLink protocol
+# dronekit==2.9.2            # DroneKit for drone control
+# opencv-python==4.8.1.78    # Computer vision
+# pybullet==3.2.5            # Physics simulation
+# mujoco==2.3.3              # MuJoCo physics engine
+
+# Motion Planning and Control
+# ==========================
+# Uncomment if needed:
+# ompl==1.5.2                # Open Motion Planning Library
+# casadi==3.6.3              # CasADi for optimization
+# cvxpy==1.4.1               # Convex optimization
+
+# Machine Learning for Robotics
+# =============================
+scikit-learn==1.4.0
+# Uncomment if needed:
+# tensorflow==2.15.0          # Deep learning
+# torch==2.1.0                # PyTorch
+# stable-baselines3==2.1.0   # Reinforcement learning
+
+# Development and Testing
+# =======================
+pytest==8.2.0
+pyyaml==6.0.1
+jupyter==1.0.0
+ipykernel==6.29.0
+
+# Visualization and Analysis
+# =========================
+seaborn==0.13.0
+plotly==5.17.0
+# Uncomment if needed:
+# mayavi==4.8.1              # 3D scientific visualization
+# vtk==9.3.0                 # Visualization Toolkit
+
+# Installation Instructions
+# =======================
+# 1. Install all dependencies:
+#    pip install -r requirements.txt
+#
+# 2. For robotics-specific packages, you may need system dependencies:
+#    # Ubuntu/Debian:
+#    sudo apt-get install libbullet-dev libode-dev
+#    # macOS:
+#    brew install bullet ode
+#
+# 3. For development, install in editable mode:
+#    pip install -e .
+#
+# 4. Verify installation:
+#    python -c "import numpy, scipy, matplotlib; print('Robotics dependencies installed successfully')"
+
+# Notes
+# =====
+# - This repository focuses on robotics, control systems, and motion planning
+# - Some packages may require system-level dependencies
+# - GPU support is recommended for machine learning components
+# - Check individual project directories for specific requirements
+# - MATLAB integration may be required for some robotics projects
